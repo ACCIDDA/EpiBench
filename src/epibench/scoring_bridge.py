@@ -9,7 +9,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
 class ScoringBridge:
     def __init__(self):
         try:
@@ -17,23 +16,37 @@ class ScoringBridge:
             self.base = importr('base')
         except Exception as e:
             raise ImportError(
-                f"Failed to import R packages. Ensure R and 'scoringutils' are installed. Error: {e}"
+                f"Failed to load R environment. Error: {e}"
             )
 
     def score_forecasts(self, data: pd.DataFrame) -> pd.DataFrame:
         """
-        Method to convert Python objects to required R variables, then generate and return scores.
+        Scores forecast data using scoringutils (R).
         """
+        unit_cols = ["target_end_date", "location", "horizon", "model"]
+        for col in unit_cols:
+            if col in data.columns:
+                data[col] = data[col].astype(str)
 
         with localconverter(robjects.default_converter + pandas2ri.converter):
-            # convert Python objects to R objects
-            r_data = pandas2ri.py2rpy(data)
-            forecast_unit = robjects.StrVector(["target_end_date", "location", "horizon", "model"])
-
-            forecast_object = self.scoringutils.as_forecast_quantile(r_data, forecast_unit=forecast_unit)
-            scores = self.scoringutils.score(forecast_object)
-
-            back_to_python_data = pandas2ri.rpy2py(scores)
+            robjects.r.assign("input_df", data)
+            robjects.r.assign("units", robjects.StrVector(unit_cols))
+            r_logic = """
+            library(scoringutils)
+            # Create the object and immediately score it without returning to Python
+            forecast_obj <- as_forecast_quantile(
+                input_df, 
+                forecast_unit = units
+            )
+            results <- score(forecast_obj)
+            results
+            """
             
-        logging.info("Success ✅")
-        return back_to_python_data
+            try:
+                r_scores = robjects.r(r_logic)
+                if isinstance(r_scores, pd.DataFrame):
+                    return r_scores
+                return robjects.conversion.rpy2py(r_scores)
+            except Exception as e:
+                logger.error(f"R-side scoring failed: {e}")
+                raise
