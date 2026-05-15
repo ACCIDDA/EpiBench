@@ -45,7 +45,9 @@ class ScoringBridge:
             try:
                 r_scores = robjects.r(r_logic)
                 if isinstance(r_scores, pd.DataFrame):
+                    logger.info("Success ✅")
                     return r_scores
+                logger.info("Success ✅")
                 return robjects.conversion.rpy2py(r_scores)
             except Exception as e:
                 logger.error(f"R-side scoring failed: {e}")

@@ -56,8 +56,11 @@ def main():
     except Exception as e:
         raise Exception(f"{e}")
 
-
-    print("File executed successfully to end 🎉 .\n\n\n")
+    # save locally and end
+    full_output_path = f"{output_path}/EpiBench_scores.csv"
+    scores.to_csv(full_output_path, index=False, encoding='utf-8-sig')
+    logger.info("File executed successfully to end 🎉.")
+    logger.info(f"Output file at {full_output_path}")
 
 
 if __name__ == "__main__":

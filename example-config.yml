@@ -11,4 +11,4 @@ models: {
     "UVAFluX-Ensemble": "/Users/emprzy/Documents/work/miscellaneous/UVAFluX-Ensemble.csv"
 } # only scores quantile data right now
 
-output_path: "/path/to/save/output/"
+output_path: "/Users/emprzy/Desktop"
