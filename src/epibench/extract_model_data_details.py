@@ -225,6 +225,7 @@ def _extra_models(
             "reference_date": str,
             "horizon": str,
             "location": str,
+            "output_type_id": str,
         }
     )
     df["horizon"] = normalize_horizon_strings(df["horizon"])

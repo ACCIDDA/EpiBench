@@ -192,7 +192,7 @@ def format_excluded_files_summary(
     target_end_dates: Optional[Iterable[str]] = None,
     reference_dates: Optional[Iterable[str]] = None,
     horizons: Optional[Iterable[str]] = None,
-    quantiles: Optional[Iterable[float]] = None,
+    quantiles: Optional[Iterable[object]] = None,
     locations: Optional[Iterable[str]] = None,
     missing_forecast_units_warning: Optional[str] = None,
 ) -> str:
@@ -275,7 +275,7 @@ def write_excluded_files_summary(
     target_end_dates: Optional[Iterable[str]] = None,
     reference_dates: Optional[Iterable[str]] = None,
     horizons: Optional[Iterable[str]] = None,
-    quantiles: Optional[Iterable[float]] = None,
+    quantiles: Optional[Iterable[object]] = None,
     locations: Optional[Iterable[str]] = None,
     missing_forecast_units_warning: Optional[str] = None,
     filename: str = FILTER_SUMMARY_FILENAME,
