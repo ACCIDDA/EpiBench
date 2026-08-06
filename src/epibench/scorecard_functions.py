@@ -21,15 +21,15 @@ def coverage_50(score_file: pd.DataFrame) -> Any:
     return score_file["interval_coverage_50"].astype(float).mean()
 
 
-def coverage_90(score_file: pd.DataFrame) -> Any:
-    """Average 90% interval coverage across all locations, target end dates, horizons."""
-    return score_file["interval_coverage_90"].astype(float).mean()
+def coverage_95(score_file: pd.DataFrame) -> Any:
+    """Average 95% interval coverage across all locations, target end dates, horizons."""
+    return score_file["interval_coverage_95"].astype(float).mean()
 
 
 SCORECARD_FUNCTIONS: dict[str, ScorecardMetric] = {
     "total wis": total_wis,
     "50_coverage": coverage_50,
-    "90_coverage": coverage_90,
+    "95_coverage": coverage_95,
 }
 
 

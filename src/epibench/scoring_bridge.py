@@ -23,6 +23,7 @@ input_csv <- args[1]
 output_csv <- args[2]
 
 suppressPackageStartupMessages(library(scoringutils))
+suppressPackageStartupMessages(library(purrr))
 
 df <- read.csv(input_csv, stringsAsFactors = FALSE)
 df$target_end_date <- as.Date(df$target_end_date)
@@ -35,7 +36,18 @@ forecast_object <- as_forecast_quantile(
   quantile = "quantile_level"
 )
 
-scores <- score(forecast_object)
+metrics <- list(
+  wis = wis,
+  overprediction = overprediction_quantile,
+  underprediction = underprediction_quantile,
+  dispersion = dispersion_quantile,
+  bias = bias_quantile,
+  interval_coverage_50 = interval_coverage,
+  interval_coverage_95 = partial(interval_coverage, interval_range = 95),
+  ae_median = ae_median_quantile
+)
+
+scores <- score(forecast_object, metrics = metrics)
 write.csv(scores, output_csv, row.names = FALSE)
 """
 
