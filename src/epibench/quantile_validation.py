@@ -136,8 +136,9 @@ def validate_for_scoring_library_challenge_quantiles(
                 raise ValueError(
                     f"Model '{model_name}' is missing required challenge quantiles "
                     f"[{_format_quantile_grid(missing_quantiles)}] "
-                    f"for forecast unit {forecast_unit}. Required challenge quantiles are "
-                    f"[{_format_quantile_grid(required_quantiles)}]."
+                    f"First forecast unit found missing this quantile: {forecast_unit}. Required challenge quantiles are "
+                    f"[{_format_quantile_grid(required_quantiles)}]. "
+                    "Please ensure exact matches; e.g., `0.50` does not validate with `0.5`"
                 )
 
             extra_quantiles = _sort_quantile_strings(
@@ -244,6 +245,7 @@ def validate_for_scoring_config_quantiles(model_dict: Dict[str, pd.DataFrame]) -
                     "requires at least the minimum safe quantile grid "
                     f"[{_format_quantile_grid(minimum_safe_scoring_grid)}] "
                     "to support the default scoringutils metrics."
+                    "Please ensure exact matches; e.g., `0.50` does not validate with `0.5`."
                 )
 
             # fail if the number of lower and upper quantiles is unbalanced
