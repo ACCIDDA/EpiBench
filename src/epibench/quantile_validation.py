@@ -170,14 +170,14 @@ def validate_for_scoring_config_quantiles(model_dict: Dict[str, pd.DataFrame]) -
     Fatal failure if:
         - quantiles outside of [0, 1] are found
         - non-numeric quantiles are found
-        - the minimum safe scoring grid is not present (0.05, 0.25, 0.5, 0.75, 0.95)
+        - the minimum safe scoring grid is not present (0.025, 0.25, 0.5, 0.75, 0.975)
         - a forecast unit repeats a quantile more than once
         - the number of quantiles is unbalanced for a forecat unit
         - a forecast unit has asymmetrical quantiles
         - different quantile units are used across models
         - different quantile units are used within a model
     """
-    minimum_safe_scoring_grid = ("0.05", "0.25", "0.5", "0.75", "0.95")
+    minimum_safe_scoring_grid = ("0.025", "0.25", "0.5", "0.75", "0.975")
 
     expected_quantile_grid = None  # type: Optional[Tuple[str, ...]]
     expected_grid_model = None  # type: Optional[str]
