@@ -221,7 +221,7 @@ Example commands:
 ```bash
 epibench
 epibench --help
-epibench setup --help
+epibench create --help
 epibench score --help
 epibench plot --help
 ```

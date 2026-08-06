@@ -4,7 +4,7 @@ Once completing the installation instructions, you will have all EpiBenchmark co
 
 ## Building a challenge
 
-- `epibench setup`: A command that fetches and organizes ground truth data (of a specificed vintage) from a forecasting hub. In running this command with your specifications, you will have the un-backfilled ground truth data necessary to execute model runs from any date of reference. [Use it now!](../workflows/epibench-setup.md)
+- `epibench create`: A command that fetches and organizes ground truth data (of a specificed vintage) from a forecasting hub. In running this command with your specifications, you will have the un-backfilled ground truth data necessary to execute model runs from any date of reference. [Use it now!](../workflows/epibench-create.md)
 
 ## Using a challenge
 
@@ -13,6 +13,6 @@ Once completing the installation instructions, you will have all EpiBenchmark co
 - `epibench score`: A command that scores model forecast data with a weighted interval score (WIS) and compiles all information into a CSV output file. [Use it now!](../workflows/epibench-score.md)
 - `epibench plot`: A command that, when given an `epibench score` CSV output file, will generate a set of plots for the visual analysis of model performance. [Use it now!](../workflows/epibench-plot.md)
 
-While they are written to build off one another, all of the EpiBenchmark workflows can be run independently (i.e., `epibench setup` is not a pre-requesite for `epibench score`, etc.).
+While they are written to build off one another, all of the EpiBenchmark workflows can be run independently (i.e., `epibench create` is not a pre-requesite for `epibench score`, etc.).
 
-The `setup`, `score`, and `plot` commands each take a single required `--config-path` flag — the absolute path to a YAML configuration file you create. The configuration file for each command is slightly different; visit the [Configuration templates](configuration-templates.md) page to get copy/pasteable templates, or visit 'Workflows' for thorough explanation of configuration keys.
+The `create`, `score`, and `plot` commands each take a single required `--config-path` flag — the absolute path to a YAML configuration file you create. The configuration file for each command is slightly different; visit the [Configuration templates](configuration-templates.md) page to get copy/pasteable templates, or visit 'Workflows' for thorough explanation of configuration keys.

@@ -98,7 +98,7 @@ epibench --help
 Users can also verify the available subcommands:
 
 ```bash
-epibench setup --help
+epibench create --help
 epibench score --help
 epibench plot --help
 ```

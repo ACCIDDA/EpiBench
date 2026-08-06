@@ -7,7 +7,7 @@ from pathlib import Path
 from hubdata import connect_target_data
 from hubdata.create_target_data_schema import TargetType
 
-from .setup_ground_truth import _suppress_missing_target_data_schema_warning
+from .create_ground_truth import _suppress_missing_target_data_schema_warning
 
 
 logger = logging.getLogger(__name__)

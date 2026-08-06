@@ -65,7 +65,7 @@ nav:
       - Challenge library commands: getting-started/challenge-library.md
   - Challenge library: challenges.md
   - Workflows:
-      - epibench setup: workflows/epibench-setup.md
+      - epibench create: workflows/epibench-create.md
       - epibench score: workflows/epibench-score.md
       - epibench plot: workflows/epibench-plot.md
   - API reference: reference.md
@@ -82,4 +82,4 @@ nav:
   #     - epibench.plot_evaluation_results: api/plot_evaluation_results.md
   #     - epibench.score: api/score.md
   #     - epibench.scoring_bridge: api/scoring_bridge.md
-  #     - epibench.setup: api/setup.md
+  #     - epibench.create: api/create.md

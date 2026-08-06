@@ -12,7 +12,7 @@ import pandas as pd
 from .config import Config
 from .extract_model_data_details import extract_model_data_details
 from .scoring_ground_truth import ScoringGroundTruth
-from .setup_ground_truth import hub_clone_setup
+from .create_ground_truth import hub_clone_create
 from .path_utils import resolve_output_dir, resolve_path
 from .quantile_validation import (
     validate_for_scoring_config_quantiles,
@@ -228,7 +228,7 @@ def _score_from_challenge_library(
     evaluation_end_date = max(reference_date_series + max(horizon_offsets))
 
     # ensure hub clone
-    hub_path = hub_clone_setup(hub_url=challenge_definition["hub_path"])
+    hub_path = hub_clone_create(hub_url=challenge_definition["hub_path"])
 
     # set baseline model, add to include models list
     baseline_model = challenge_definition["baseline_model"]
