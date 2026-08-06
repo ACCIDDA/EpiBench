@@ -134,7 +134,7 @@ def validate_for_scoring_library_challenge_quantiles(
             )
             if missing_quantiles:
                 raise ValueError(
-                    f"Model '{model_name}' is missing required challenge quantiles "
+                    f"Model '{model_name}' is missing required challenge quantile "
                     f"[{_format_quantile_grid(missing_quantiles)}] "
                     f"First forecast unit found missing this quantile: {forecast_unit}. Required challenge quantiles are "
                     f"[{_format_quantile_grid(required_quantiles)}]. "
@@ -239,7 +239,7 @@ def validate_for_scoring_config_quantiles(model_dict: Dict[str, pd.DataFrame]) -
             )
             if missing_minimum_safe_quantiles:
                 raise ValueError(
-                    f"Model '{model_name}' is missing required quantiles "
+                    f"Model '{model_name}' is missing required quantile "
                     f"[{_format_quantile_grid(missing_minimum_safe_quantiles)}] "
                     f"for forecast unit {forecast_unit}. Config-route scoring "
                     "requires at least the minimum safe quantile grid "
