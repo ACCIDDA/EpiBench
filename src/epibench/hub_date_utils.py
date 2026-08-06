@@ -1,4 +1,4 @@
-"""Helper functions for hub schedule metadata and setup-date validation."""
+"""Helper functions for hub schedule metadata and create-date validation."""
 
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ def _derive_gt_cutoff_dates(
     offset_days: int,
 ) -> list[str]:
     """
-    Derive truth cutoff dates from setup/reference dates.
+    Derive truth cutoff dates from create/reference dates.
 
     ``offset_days`` is applied directly to each requested date:
     - ``0`` keeps the cutoff date aligned with the requested date
@@ -162,14 +162,14 @@ def _warn_on_vintaging_offset_mismatch(hub_path: Path, vintaging_cutoff: int) ->
         )
 
 
-def validate_setup_dates_against_hub_rounds(
+def validate_create_dates_against_hub_rounds(
     hub_path: Path,
     requested_dates: list[str],
     targets: list[str],
     gt_cutoff_offset: int,
 ) -> tuple[list[str], list[str], str | None]:
     """
-    Validate setup dates against bundled hub season boundaries.
+    Validate create dates against bundled hub season boundaries.
 
     Rules:
     - the hub must appear in the bundled date library, otherwise validation is skipped
@@ -177,8 +177,8 @@ def validate_setup_dates_against_hub_rounds(
     - each requested date must be a 7-day multiple from that season's start date
 
     Returns:
-    - validated setup dates
-    - gt cutoff dates derived from each setup date plus ``gt_cutoff_offset``
+    - validated create dates
+    - gt cutoff dates derived from each create date plus ``gt_cutoff_offset``
     - matched season label, if validation was possible
     """
     del targets  # date validation now relies only on bundled hub season metadata
@@ -193,7 +193,7 @@ def validate_setup_dates_against_hub_rounds(
     if hub_name not in hub_date_library:
         logger.warning(
             "Hub %s was not found in bundled hub_dates.json. Proceeding without "
-            "validating setup dates against the hard-coded season library.",
+            "validating create dates against the hard-coded season library.",
             hub_name,
         )
         return (
@@ -220,14 +220,14 @@ def validate_setup_dates_against_hub_rounds(
 
     if not season_matches:
         raise ValueError(
-            "Requested setup dates do not fall within a single season listed in "
+            "Requested create dates do not fall within a single season listed in "
             f"hub_dates.json for hub {hub_name!r}."
         )
 
     if len(season_matches) > 1:
         raise ValueError(
-            "Requested setup dates match more than one season in hub_dates.json for "
-            f"hub {hub_name!r}: {season_matches}. Please limit each setup run to one season."
+            "Requested create dates match more than one season in hub_dates.json for "
+            f"hub {hub_name!r}: {season_matches}. Please limit each create run to one season."
         )
 
     matched_season_name = season_matches[0]
@@ -244,7 +244,7 @@ def validate_setup_dates_against_hub_rounds(
     ]
     if invalid_dates:
         raise ValueError(
-            "The following setup dates are not weekly multiples of the season start "
+            "The following create dates are not weekly multiples of the season start "
             f"date {matched_season_start} for hub {hub_name!r}, season {matched_season_name!r}: "
             f"{invalid_dates}"
         )

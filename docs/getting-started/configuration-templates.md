@@ -1,6 +1,6 @@
 # Configuration templates
 
-## `epibench setup`
+## `epibench create`
 
 ```yaml
 ---

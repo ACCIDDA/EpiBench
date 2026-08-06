@@ -1,6 +1,6 @@
 """
 Functions associated with:
-    - cloning/updating a hub (hub_clone_setup())
+    - cloning/updating a hub (hub_clone_create())
     - retrieving vintaged gt data via `git checkout` (_checkout_gt_fetch() exposed via gt_from_hub())
     - retrieving vintaged gt data via timeseries.csv "as_of" col (_asof_gt_fetch() exposed via gt_from_hub())
     - retrieving non-vintaged gt data via timeseries.csv "as_of" col (_asof_gt_fetch() exposed via gt_from_hub())
@@ -186,7 +186,7 @@ def _asof_gt_fetch(
         return gt, date_s
 
 
-def hub_clone_setup(hub_url: str) -> Path:
+def hub_clone_create(hub_url: str) -> Path:
     """
     Clone the hub repo given a GitHub URL, or pull if a clone already exists.
     """

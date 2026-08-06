@@ -21,7 +21,8 @@ def cli(ctx: click.Context) -> None:
 
 
 @cli.command(
-    short_help="Set up your model runs with ground truth data pulled from specified hub.",
+    name="create",
+    short_help="Create model inputs on a specified cadence from hub ground truth data.",
     help="Command to get appropriately vintaged ground truth data to run your model on",
 )
 @click.option(
@@ -30,11 +31,11 @@ def cli(ctx: click.Context) -> None:
     required=False,
     help="Absolute path to your YAML configuration file.",
 )
-def setup(config_path: str | None) -> None:
-    """Run the EpiBench setup pipeline."""
-    from .setup import setup as run_setup
+def create(config_path: str | None) -> None:
+    """Run the EpiBench create pipeline."""
+    from .create import create as run_create
 
-    run_setup(config_path=config_path)
+    run_create(config_path=config_path)
 
 
 @cli.command(

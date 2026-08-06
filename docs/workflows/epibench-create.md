@@ -1,10 +1,10 @@
-# `epibench setup`
+# `epibench create`
 
-`epibench setup` is a command that, when given a configuration file with a specified hub and dates, can fetch + organize vintaged ground truth data from a forecasting hub. That is, if you wanted to run your model on the ground truth influenza data that was available on date YYYY-MM-DD, `epibench setup` will visit the correct hub, check out the ground truth file from that day in the past, and return it to you in an organized hierarchy on your machine.
+`epibench create` is a command that, when given a configuration file with a specified hub and dates, can fetch + organize vintaged ground truth data from a forecasting hub. That is, if you wanted to run your model on the ground truth influenza data that was available on date YYYY-MM-DD, `epibench create` will visit the correct hub, check out the ground truth file from that day in the past, and return it to you in an organized hierarchy on your machine.
 
 ## Config file 
 
-To run `epibench setup`, you will have to create a YAML configuration file with 4 keys: `hub`, `dates`, `vintaging`, and `output_path`. 
+To run `epibench create`, you will have to create a YAML configuration file with 4 keys: `hub`, `dates`, `vintaging`, and `output_path`. 
 
 ### hub
 
@@ -17,7 +17,7 @@ A key denoting which forecasting hub you would like your ground truth data fetch
 
 ### dates
 
-The dates key of the config takes the form of a dictionary with 3 required keys: `start_date`, `end_date`, and `freq`. This is where you can specify which date(s) you want ground truth fetched for. With values for start, end, and frequency, `epibench setup` will create a list of unique dates of reference to pull for. Notes on values:
+The dates key of the config takes the form of a dictionary with 3 required keys: `start_date`, `end_date`, and `freq`. This is where you can specify which date(s) you want ground truth fetched for. With values for start, end, and frequency, `epibench create` will create a list of unique dates of reference to pull for. Notes on values:
 
 - `start_date` and `end_date` should be expressed as `YYYY-MM-DD`
 - `end_date` should come AFTER `start_date`, and both dates must be in the past/present
@@ -69,7 +69,7 @@ output_path: "/Users/name/Desktop"
 
 If your config file existed at absolute path `/absolute/path/to/config.yml`, you could run:
 ```bash
-epibench setup --config-path "/absolute/path/to/config.yml"
+epibench create --config-path "/absolute/path/to/config.yml"
 ```
 which would result in an output folder created at `/Users/name/Desktop`, with the structure:
 ```

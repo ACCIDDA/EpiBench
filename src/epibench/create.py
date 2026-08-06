@@ -1,4 +1,4 @@
-"""Start of the `setup` pipeline."""
+"""Run the `create` pipeline."""
 
 import logging
 import pandas as pd
@@ -7,19 +7,19 @@ import hashlib
 import json
 
 from .config import Config
-from .setup_ground_truth import gt_from_hub
+from .create_ground_truth import gt_from_hub
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def setup(config_path=None):
+def create(config_path=None):
     """
-    Main execution function for the epibench setup pipeline.
+    Main execution function for the `epibench create` pipeline.
     """
     # validate config
     logger.info("Validating config...")
-    config_object = Config(config_path=config_path, pipeline="setup")
+    config_object = Config(config_path=config_path, pipeline="create")
     # can reference config info with:
     # .hub_path (Path)
     # .challenge_name(str)
@@ -76,8 +76,6 @@ def setup(config_path=None):
     task_list = pd.DataFrame(list(date_to_abs_gt_paths.items()), columns=["date", "path_to_gt"])
     task_list_output_path = output_base / "task_list.csv"
     task_list.to_csv(task_list_output_path, index=False)
-
-
 def _build_challenge_id(config_object: Config) -> str:
     """
     Construct a challenge_id by using user defined challenge name

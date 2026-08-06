@@ -26,7 +26,7 @@ EpiBenchmark is a thin layer on top of [Hubverse](https://hubverse.io/). Hubvers
 
 EpiBenchmark exposes three workflows:
 
-- facilitate model runs with vintaged ground truth data fetched and organized by the tool (`epibench setup`)
+- facilitate model runs with vintaged ground truth data fetched and organized by the tool (`epibench create`)
 - score model forecasts with a WIS (includes over prediction, under prediction, coverage, etc.) (`epibench score`)
 - create an array of plots to visualize model performance (`epibench plot`)
 

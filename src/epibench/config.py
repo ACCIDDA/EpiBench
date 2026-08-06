@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-from .hub_date_utils import validate_setup_dates_against_hub_rounds
+from .hub_date_utils import validate_create_dates_against_hub_rounds
 from .path_utils import resolve_hub_path, resolve_output_dir, resolve_path
 
 logger = logging.getLogger(__name__)
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class Config:
     def __init__(self, config_path: str, pipeline: str):
 
-        valid_pipelines = ["setup", "score", "plot"]
+        valid_pipelines = ["create", "score", "plot"]
 
         if pipeline.lower() not in valid_pipelines:
             raise ValueError(f"'pipeline' param must be one of {valid_pipelines}. Received '{pipeline}'.")
@@ -39,8 +39,8 @@ class Config:
         self.base_dir = self.config_path.parent
 
         # Pipeline-specific validation
-        if self.pipeline == "setup":
-            self.validate_setup_config()
+        if self.pipeline == "create":
+            self.validate_create_config()
         elif self.pipeline == "score":
             self.validate_score_config()
         elif self.pipeline == "plot":
@@ -49,9 +49,9 @@ class Config:
         logger.info("Success ✅")
 
 
-    def validate_setup_config(self):
+    def validate_create_config(self):
         """
-        A method to validate a config for the `setup` pipeline.
+        A method to validate a config for the `create` pipeline.
         
         Creates attributes for each key of the config:
         - .hub_path
@@ -200,7 +200,7 @@ class Config:
             self.vintaging_offset = 0 # no vintaging offset for non-vintaged runs (use the date itself)
 
         self.dates, self.gt_cutoff_dates, self.hub_round_label = (
-            validate_setup_dates_against_hub_rounds(
+            validate_create_dates_against_hub_rounds(
                 hub_path=self.hub_path,
                 requested_dates=self.dates,
                 targets=self.targets,
@@ -213,8 +213,6 @@ class Config:
         self.output_path = resolve_output_dir(
             self.config["output_path"], base_dir=self.base_dir
         )
-
-
     def validate_score_config(self): 
         """
         A method to validate a config for the `score` pipeline.

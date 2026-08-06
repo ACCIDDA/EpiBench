@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .setup_ground_truth import hub_clone_setup
+from .create_ground_truth import hub_clone_create
 
 
 def resolve_path(path_value: str | Path, base_dir: str | Path | None = None) -> Path:
@@ -25,7 +25,7 @@ def resolve_hub_path(hub_path_value: str, base_dir: str | Path | None = None) ->
     Resolve and validate a local hub path, or clone a GitHub URL.
     """
     if hub_path_value.startswith(("http://", "https://")) and "github.com" in hub_path_value:
-        return hub_clone_setup(hub_url=hub_path_value)
+        return hub_clone_create(hub_url=hub_path_value)
 
     hub_path = resolve_path(hub_path_value, base_dir=base_dir)
     if not hub_path.is_dir():
