@@ -58,7 +58,7 @@ To run 'epibench score' command, users need:
 
   • An R installation
   • Rscript available on your PATH
-  • The CRAN package 'scoringutils'
+  • The CRAN packages 'scoringutils' and 'purrr'
 
 On HPC systems, users may need to load an R module first:
 
@@ -68,7 +68,7 @@ On HPC systems, users may need to load an R module first:
 Then verify:
 
     Rscript --version
-    Rscript -e "library(scoringutils)"
+    Rscript -e "library(scoringutils); library(purrr)"
 """
 
 
@@ -120,15 +120,19 @@ class ScoringBridge:
                 stdout = result.stdout.strip()
                 details = "\n".join(part for part in [stdout, stderr] if part)
                 normalized_details = details.replace("‘", "'").replace("’", "'").lower()
-                if (
-                    "there is no package called" in normalized_details
-                    and "scoringutils" in normalized_details
-                ):
-                    raise RuntimeError(
-                        "R scoring process failed because the R package `scoringutils` is not installed.\n"
-                        "Install it in R with:\n"
-                        "Rscript -e 'install.packages(\"scoringutils\")'"
-                    )
+                if "there is no package called" in normalized_details:
+                    if "scoringutils" in normalized_details:
+                        raise RuntimeError(
+                            "R scoring process failed because the R package `scoringutils` is not installed.\n"
+                            "Install it in R with:\n"
+                            "Rscript -e 'install.packages(c(\"scoringutils\", \"purrr\"))'"
+                        )
+                    if "purrr" in normalized_details:
+                        raise RuntimeError(
+                            "R scoring process failed because the R package `purrr` is not installed.\n"
+                            "Install it in R with:\n"
+                            "Rscript -e 'install.packages(c(\"scoringutils\", \"purrr\"))'"
+                        )
                 raise RuntimeError(
                     "R scoring process failed."
                     + (f"\n{details}" if details else "")

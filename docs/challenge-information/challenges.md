@@ -1,6 +1,6 @@
 # Challenge library
 
-The challenges bundled with EpiBenchmark. List them at the command line with `epibench list`, and download a challenge's data files from Zenodo with `epibench fetch <challenge_id>` — see [Challenge library commands](getting-started/challenge-library.md).
+EpiBenchmark ships with a library of predefined **challenges** (challenges have fixed hub, target, dates, horizons, quantiles, locations, and scoring settings). Explore each challenge in our library below. You can list them locally via the command line with `epibench list`, and fully download a challenge from Zenodo with `epibench fetch <challenge-id>`.
 
 Click a challenge to expand its full definition.
 
@@ -14,7 +14,7 @@ Click a challenge to expand its full definition.
     | Quantiles | 0.05, 0.25, 0.5, 0.75, 0.95 |
     | Locations | 52 |
     | Baseline model | `FluSight-baseline` |
-    | Scorecard | total wis, 50_coverage, 90_coverage |
+    | Scorecard | total wis, 50_coverage, 95_coverage |
     | Zenodo | *not yet published to Zenodo* |
 
 ??? note "epb_flu_inchosp_2024-2025_dev"
@@ -27,8 +27,10 @@ Click a challenge to expand its full definition.
     | Quantiles | 0.05, 0.25, 0.5, 0.75, 0.95 |
     | Locations | 52 |
     | Baseline model | `FluSight-baseline` |
-    | Scorecard | total wis, 50_coverage, 90_coverage |
+    | Scorecard | total wis, 50_coverage, 95_coverage |
     | Zenodo | [10.5281/zenodo.21413630](https://doi.org/10.5281/zenodo.21413630) |
+
+    * **Note**: `epb_flu_inchosp_2025-2025_dev` has a 1-week date discontinuity at `2025-01-25` due to a US government shutdown.
 
 ??? note "epb_flu_inchosp_2025-2026_dev"
     | Field | Value |
@@ -40,7 +42,7 @@ Click a challenge to expand its full definition.
     | Quantiles | 0.05, 0.25, 0.5, 0.75, 0.95 |
     | Locations | 52 |
     | Baseline model | `FluSight-baseline` |
-    | Scorecard | total wis, 50_coverage, 90_coverage |
+    | Scorecard | total wis, 50_coverage, 95_coverage |
     | Zenodo | [10.5281/zenodo.21413852](https://doi.org/10.5281/zenodo.21413852) |
 
 ??? note "epb_rsv_inchosp_2025-2026_dev"
@@ -53,5 +55,5 @@ Click a challenge to expand its full definition.
     | Quantiles | 0.05, 0.25, 0.5, 0.75, 0.95 |
     | Locations | 52 |
     | Baseline model | `RSVHub-baseline` |
-    | Scorecard | total wis, 50_coverage, 90_coverage |
+    | Scorecard | total wis, 50_coverage, 95_coverage |
     | Zenodo | [10.5281/zenodo.21413793](https://doi.org/10.5281/zenodo.21413793) |

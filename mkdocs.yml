@@ -60,14 +60,18 @@ nav:
   - Home: index.md
   - Getting Started:
       - Installation: getting-started/installation.md
+      - Installation (for longleaf): getting-started/installation_longleaf.md
       - Overview: getting-started/overview.md
       - Configuration templates: getting-started/configuration-templates.md
-      - Challenge library commands: getting-started/challenge-library.md
-  - Challenge library: challenges.md
-  - Workflows:
-      - epibench create: workflows/epibench-create.md
-      - epibench score: workflows/epibench-score.md
-      - epibench plot: workflows/epibench-plot.md
+  - Challenge Information:
+    - Challenge library: challenge-information/challenges.md
+    - Participating in a challenge: challenge-information/challenge-participation.md
+  - Commands:
+      - epibench list: commands/epibench-list.md
+      - epibench fetch: commands/epibench-fetch.md
+      - epibench create: commands/epibench-create.md
+      - epibench score: commands/epibench-score.md
+      - epibench plot: commands/epibench-plot.md
   - API reference: reference.md
   # - API Reference:
   #     - Overview: api/index.md
