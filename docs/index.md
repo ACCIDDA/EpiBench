@@ -1,34 +1,34 @@
 # EpiBenchmark
 
-**Authors**: [Author names placeholder]
+**Authors**: Joseph Lemaitre, Emily Przykucki, Yue Liu, and Justin Lessler
 
 ## What is EpiBenchmark?
 
-EpiBenchmark is a benchmark framework and challenge library for infectious disease forecasting. Challenges defines common forecasting tasks associated with fixed versions of truth data and evaluation rules. In the ends, models receive scorecards and can be compared under the same conditions. It provides a reproducible way to compare epidemiologic forecasting methods across diseases, targets, and teams.
+EpiBenchmark is a **benchmarking framework** and **challenge library** for infectious disease forecasting. Our challenges define common forecasting tasks associated with fixed versions of ground truth data and evaluation rules to facillitate easy and fair forecasting evaluation. That is, models receive scorecards with a variety of metrics and can be compared under the same conditions. EpiBenchmark provides a reproducible way to compare epidemiologic forecasting methods across diseases, targets, and teams.
 
 ## Why EpiBenchmark?
 Evaluation of epidemiologic forecasting models is difficult, and the field is fragmented. Different groups evaluate forecasts on different targets, different versions of observed data, different geographic units, and different scoring rules. As a result, reported performance is often hard to compare directly across papers.
 
-This problem is amplified by the fact that surveillance data are often revised after initial release. A model evaluated against the latest revised data may not be directly comparable to a model evaluated against an earlier data version, even if both were forecasting the same target. For probabilistic forecasts, performance also depends on the exact scoring rule and evaluation procedure used. 
+This problem is amplified by the fact that surveillance data are often revised after initial release (backfilling). A model evaluated against the latest revised data may not be directly comparable to a model evaluated against an earlier data version, even if both were forecasting the same target. For probabilistic forecasts, performance also depends on the exact scoring rule and evaluation procedure used. 
 
-The progress in a scientific field is easier to measure when there exists a common protocol for evaluation.  EpiBenchmark mirrors similar effort in other fields such as [WeatherBench](https://arxiv.org/abs/2002.00469) and [WeatherBench 2](https://arxiv.org/abs/2308.15560), but is adapted to epidemiologic forecasting own challenges (such has revised surveillance data) and standards (probabilistic evaluation, [hubverse](https://hubverse.io/) format). Note that earlier work also argued for a common evaluation protocol in epidemic forecasting ([Srivastava et al. 2021](https://arxiv.org/abs/2102.02842)).
+The progress in a scientific field is easier to measure when there exists a common protocol for evaluation. EpiBenchmark mirrors similar effort in other fields such as [WeatherBench](https://arxiv.org/abs/2002.00469) and [WeatherBench 2](https://arxiv.org/abs/2308.15560), but is adapted to the specific challenges associated with epidemiologic forecasting (such as backfilled surveillance data) and its conventions (probabilistic evaluation, [hubverse](https://hubverse.io/) format). Note that earlier work also argued for a common evaluation protocol in epidemic forecasting ([Srivastava et al. 2021](https://arxiv.org/abs/2102.02842)).
 
 ### EpiBenchMark vs Real-time hubs
 Real-time collaborative hubs are and remain the gold standard for operational epidemiologic forecasting. Examples include [FluSight](https://github.com/cdcepi/FluSight-forecast-hub), [RSV Forecast Hub](https://github.com/CDCgov/rsv-forecast-hub), [COVID-19 Forecast Hub](https://github.com/CDCgov/covid19-forecast-hub), and [Flu MetroCast](https://github.com/reichlab/flu-metrocast).
 
-But real-time hub evaluation is tied to ongoing submission cycles, changing data, and operational timelines. That makes comparison slower, harder to rerun, and less reproducible across studies. EpiBenchmark is intended to provide a faster benchmarking layer around these hubs, while staying compatible with their forecasting setup.
+But real-time hub evaluation is tied to ongoing submission cycles, changing data, and operational timelines. That makes comparison slower and models harder to re-run, resulting in less reproducibility across studies. EpiBenchmark is intended to provide a faster benchmarking layer around these hubs, while staying compatible with their forecasting setup.
 
 ### EpiBenchmark vs Hubverse
 
-EpiBenchmark is a thin layer on top of [Hubverse](https://hubverse.io/). Hubverse defines the data format and shared infrastructure. EpiBenchmark defines the benchmark tasks, frozen truth snapshots, scoring procedures, and scorecards. The goal is to add to hubverse a benchmark layer that makes evaluation faster to run, easier to reproduce, and easier to compare across models.
+EpiBenchmark is a thin layer on top of [Hubverse](https://hubverse.io/). Hubverse defines the data format and shared infrastructure. EpiBenchmark defines the benchmark tasks, frozen ground truth snapshots, scoring procedures, scorecards, and plots. The goal is to add a benchmarking layer to the hubverse that makes evaluation faster to run, easier to reproduce, and easier to compare across models.
 
 ## EpiBenchmark in practice
 
 EpiBenchmark exposes three workflows:
 
-- facilitate model runs with vintaged ground truth data fetched and organized by the tool (`epibench create`)
-- score model forecasts with a WIS (includes over prediction, under prediction, coverage, etc.) (`epibench score`)
-- create an array of plots to visualize model performance (`epibench plot`)
+- `epibench create`: facilitate model runs for any reference date with vintaged ground truth data fetched and organized by the tool
+- `epibench score`: score model forecasts with a WIS (includes over prediction, under prediction, coverage, etc.) 
+- `epibench plot`: create an array of plots to visualize model performance (`epibench plot`)
 
 ## Funding
 

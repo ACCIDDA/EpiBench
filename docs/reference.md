@@ -1,6 +1,8 @@
 # API reference
 
-Programmatic entry points behind the [challenge library commands](getting-started/challenge-library.md).
+#### coming soon 
+
+Programmatic entry points behind the [challenge library commands](challenge-information/challenges.md).
 
 ## `epibench.library`
 

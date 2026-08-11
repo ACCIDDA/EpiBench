@@ -1,6 +1,6 @@
 # Installing EpiBenchmark on the UNC Longleaf Cluster
 
-This guide describes how to install and use EpiBenchmark on the UNC Longleaf HPC cluster.
+This guide describes how to install and use EpiBenchmark on the UNC Longleaf HPC cluster. **If you only want to use EpiBenchmark on your machine, you need not do anything beyond the standard [installation instructions](installation.md)**.
 
 ## Prerequisites
 
@@ -128,7 +128,7 @@ To run `epibench score` command, users need:
 
 * R
 * `Rscript`
-* the CRAN package `scoringutils`
+* the CRAN packages `scoringutils` and `purrr`
 
 
 Verify the R version:
@@ -179,19 +179,19 @@ Users should see the following:
 [2] "/nas/longleaf/rhel9/apps/r/4.4.0/lib64/R/library"
 ```
 
-## Install package `scoringutils`
+## Install R packages
 Once the user-level library exists, run:
 
 ```bash
-Rscript -e '.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.4", .libPaths())); install.packages("scoringutils", repos="https://cloud.r-project.org")'
+Rscript -e '.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.4", .libPaths())); install.packages(c("scoringutils", "purrr"), repos="https://cloud.r-project.org")'
 ```
 
 Verify the installation:
 
 ```bash
-Rscript -e '.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.4", .libPaths())); library(scoringutils)'
+Rscript -e '.libPaths(c("~/R/x86_64-pc-linux-gnu-library/4.4", .libPaths())); library(scoringutils); library(purrr)'
 ```
-if no error appears, the `scoringutils` is installed correctly.
+if no error appears, the required R packages are installed correctly.
 
 ## Make R configuration permanent
 

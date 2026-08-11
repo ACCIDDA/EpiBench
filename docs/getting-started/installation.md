@@ -2,12 +2,12 @@
 
 EpiBenchmark uses a standard Python installation flow with one extra runtime
 requirement for scoring: `epibench score` calls `Rscript` and needs the CRAN
-package `scoringutils`.
+packages `scoringutils` and `purrr`.
 
 ## Requirements
 - Python 3.10 or later
 - Git
-- R and the `scoringutils` package for the `epibench score` command
+- R and the `scoringutils` and `purrr` packages for the `epibench score` command
 
 ## Quick Start
 ```bash
@@ -110,8 +110,8 @@ The `epibench score` command also calls `Rscript`, so scoring has two external
 requirements:
 
 - `Rscript` must be available on users' `PATH`
-- the CRAN package `scoringutils` must be installed in the R library used by
-  that `Rscript`
+- the CRAN packages `scoringutils` and `purrr` must be installed in the R
+  library used by that `Rscript`
 
 Check that `R` is available with:
 
@@ -119,21 +119,21 @@ Check that `R` is available with:
 Rscript --version
 ```
 
-Install `scoringutils` with:
+Install the required R packages with:
 
 ```bash
-Rscript -e 'install.packages("scoringutils")'
+Rscript -e 'install.packages(c("scoringutils", "purrr"))'
 ```
 
-Verify that the package is available with:
+Verify that the packages are available with:
 
 ```bash
-Rscript -e 'library(scoringutils)'
+Rscript -e 'library(scoringutils); library(purrr)'
 ```
 
-If `epibench score` reports that `Rscript` or `scoringutils` is missing, make
-sure they are installed in the same R environment used by `Rscript`
-command.
+If `epibench score` reports that `Rscript`, `scoringutils`, or `purrr` is
+missing, make sure they are installed in the same R environment used by
+`Rscript` command.
 
 
 ## Remove the virtual environment

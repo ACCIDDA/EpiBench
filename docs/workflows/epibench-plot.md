@@ -1,3 +1,0 @@
-# `epibench plot`
-
-COMING SOON
