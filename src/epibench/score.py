@@ -20,6 +20,8 @@ from .quantile_validation import (
 )
 from .scoring_summary import (
     build_config_missing_forecast_units_summary,
+    build_extra_model_forecast_unit_coverage_summary,
+    format_extra_model_coverage_warning,
     format_missing_forecast_units_warning,
     write_excluded_files_summary,
 )
@@ -147,11 +149,31 @@ def _score_from_config(config_path: str) -> None:
         for model_name in config_object.model_info
         if model_name in model_dict
     }
+    extra_model_dict = {
+        model_name: model_dict[model_name]
+        for model_name in config_object.include_models
+        if model_name in model_dict
+    }
     missing_forecast_units_summary = build_config_missing_forecast_units_summary(
         submitted_model_dict
     )
     missing_forecast_units_warning = format_missing_forecast_units_warning(
         missing_forecast_units_summary
+    )
+    extra_model_coverage_summary = build_extra_model_forecast_unit_coverage_summary(
+        submitted_model_dict,
+        extra_model_dict,
+    )
+    extra_model_coverage_warning = format_extra_model_coverage_warning(
+        extra_model_coverage_summary
+    )
+    summary_warning_blocks = "\n\n---\n\n".join(
+        warning
+        for warning in (
+            missing_forecast_units_warning,
+            extra_model_coverage_warning,
+        )
+        if warning
     )
     global_target_end_dates = []
     if missing_forecast_units_summary is not None:
@@ -189,7 +211,7 @@ def _score_from_config(config_path: str) -> None:
         target=config_object.target,
         output_dir=config_object.output_path,
         target_end_dates=global_target_end_dates,
-        missing_forecast_units_warning=missing_forecast_units_warning,
+        missing_forecast_units_warning=summary_warning_blocks,
     )
     logger.info("Process executed successfully to end 🎉.")
     logger.info(f"Output file at {full_output_path}")

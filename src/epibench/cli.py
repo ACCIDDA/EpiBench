@@ -130,20 +130,46 @@ def score(
 
 @cli.command(
     short_help="Generate evaluation plots from scoring output.",
-    help="Command to build plots used for evaluation of model forecast data.",
+    help=(
+        "Command to build plots from a user-provided configuration file. If a "
+        "library challenge is provided, all of the complete models for that "
+        "challenge will be included in plotting output."
+    ),
 )
 @click.option(
     "--config-path",
     type=str,
-    default="plot-config.yml",
     required=False,
     help="Absolute path to your YAML configuration file.",
 )
-def plot(config_path: str | None) -> None:
+@click.argument("challenge_name", required=False)
+@click.option(
+    "--score-file-path",
+    type=str,
+    required=False,
+    help="Absolute path to the EpiBenchmark_scores.csv file you want to visualize.",
+)
+@click.option(
+    "--output-path",
+    type=str,
+    required=False,
+    help="Path to the directory where plot outputs should be written for a library challenge.",
+)
+def plot(
+    challenge_name: str | None,
+    model_data_path: str | None,
+    output_path: str | None,
+    config_path: str | None,
+) -> None:
     """Run the EpiBench plot pipeline."""
     from .plot import plot as run_plot
 
-    run_plot(config_path=config_path)
+    run_plot(
+        challenge_name=challenge_name,
+        model_data_path=model_data_path,
+        output_path=output_path,
+        config_path=config_path,
+    )
 
 
 def main(argv: list[str] | None = None) -> int | None:

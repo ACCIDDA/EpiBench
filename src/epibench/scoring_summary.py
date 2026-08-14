@@ -119,6 +119,85 @@ def build_config_missing_forecast_units_summary(
     }
 
 
+def build_extra_model_forecast_unit_coverage_summary(
+    submitted_model_dict: Dict[str, pd.DataFrame],
+    extra_model_dict: Dict[str, pd.DataFrame],
+) -> Optional[Dict[str, object]]:
+    """Describe extra models missing forecast units from the submitted-model union."""
+
+    def _normalize_date_strings(date_series: pd.Series) -> pd.Series:
+        return pd.to_datetime(date_series, errors="raise").dt.strftime("%Y-%m-%d")
+
+    def _sort_unit(unit: Tuple[str, str, str, str]) -> Tuple[str, str, str, Tuple[int, object]]:
+        horizon = str(unit[3])
+        horizon_sort = (0, int(horizon)) if horizon.isdigit() else (1, horizon)
+        return (unit[0], unit[1], unit[2], horizon_sort)
+
+    submitted_global_units = set()
+    submitted_locations = set()
+    submitted_horizons = set()
+    submitted_reference_dates = set()
+    submitted_target_end_dates = set()
+
+    for forecast_df in submitted_model_dict.values():
+        normalized = forecast_df.copy()
+        normalized["reference_date"] = _normalize_date_strings(normalized["reference_date"])
+        normalized["target_end_date"] = _normalize_date_strings(normalized["target_end_date"])
+        unit_rows = normalized[
+            ["reference_date", "target_end_date", "location", "horizon"]
+        ].drop_duplicates()
+        submitted_global_units.update(
+            tuple(unit_row) for unit_row in unit_rows.itertuples(index=False, name=None)
+        )
+        submitted_locations.update(unit_rows["location"])
+        submitted_horizons.update(unit_rows["horizon"])
+        submitted_reference_dates.update(unit_rows["reference_date"])
+        submitted_target_end_dates.update(unit_rows["target_end_date"])
+
+    if not submitted_global_units or not extra_model_dict:
+        return None
+
+    model_summaries = []
+    for model_name in sorted(extra_model_dict):
+        normalized = extra_model_dict[model_name].copy()
+        normalized["reference_date"] = _normalize_date_strings(normalized["reference_date"])
+        normalized["target_end_date"] = _normalize_date_strings(normalized["target_end_date"])
+        unit_rows = normalized[
+            ["reference_date", "target_end_date", "location", "horizon"]
+        ].drop_duplicates()
+        model_units = {
+            tuple(unit_row) for unit_row in unit_rows.itertuples(index=False, name=None)
+        }
+        missing_units = sorted(submitted_global_units - model_units, key=_sort_unit)
+        if not missing_units:
+            continue
+        model_summaries.append(
+            {
+                "model_name": model_name,
+                "missing_units": [
+                    {
+                        "reference_date": missing_unit[0],
+                        "target_end_date": missing_unit[1],
+                        "location": missing_unit[2],
+                        "horizon": missing_unit[3],
+                    }
+                    for missing_unit in missing_units
+                ],
+            }
+        )
+
+    if not model_summaries:
+        return None
+
+    return {
+        "locations": sorted(str(location) for location in submitted_locations),
+        "horizons": sort_horizon_strings({str(horizon) for horizon in submitted_horizons}),
+        "reference_dates": sorted(str(reference_date) for reference_date in submitted_reference_dates),
+        "target_end_dates": sorted(str(target_end_date) for target_end_date in submitted_target_end_dates),
+        "models": model_summaries,
+    }
+
+
 def format_missing_forecast_units_warning(
     missing_forecast_units_summary: Optional[Dict[str, object]],
 ) -> str:
@@ -181,6 +260,62 @@ def format_missing_forecast_units_warning(
                 ),
             ]
         )
+        lines.append("")
+
+    return "\n".join(lines).rstrip()
+
+
+def format_extra_model_coverage_warning(
+    extra_model_coverage_summary: Optional[Dict[str, object]],
+) -> str:
+    """Build a markdown warning block for extra models missing submitted forecast units."""
+    if not extra_model_coverage_summary:
+        return ""
+
+    model_summaries = extra_model_coverage_summary.get("models", [])
+    if not model_summaries:
+        return ""
+
+    lines = [
+        "## ⚠️ Warning",
+        "",
+        "Not all included hub models contain the full forecast-unit set found across the submitted models.",
+        "Comparisons involving these models might not be 1:1 across every forecast unit.",
+        "",
+        "Submitted-model forecast-unit facets observed across the run:",
+        "",
+        f"- locations: {', '.join(extra_model_coverage_summary['locations'])}",
+        f"- horizons: {', '.join(extra_model_coverage_summary['horizons'])}",
+        f"- reference_dates: {', '.join(extra_model_coverage_summary['reference_dates'])}",
+        f"- target_end_dates: {', '.join(extra_model_coverage_summary['target_end_dates'])}",
+        "",
+        "Missing forecast units by included hub model:",
+        "",
+    ]
+
+    for model_summary in model_summaries:
+        lines.extend(
+            [
+                f"### {model_summary['model_name']}",
+                "",
+                f"Missing forecast units: {len(model_summary['missing_units'])}",
+            ]
+        )
+        if model_summary["missing_units"]:
+            lines.extend(
+                [
+                    "",
+                    "| reference_date | target_end_date | location | horizon |",
+                    "| --- | --- | --- | --- |",
+                ]
+            )
+            for missing_unit in model_summary["missing_units"]:
+                lines.append(
+                    f"| {missing_unit['reference_date']} | "
+                    f"{missing_unit['target_end_date']} | "
+                    f"{missing_unit['location']} | "
+                    f"{missing_unit['horizon']} |"
+                )
         lines.append("")
 
     return "\n".join(lines).rstrip()
