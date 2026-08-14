@@ -187,6 +187,7 @@ def _extra_models(
         eval_end_date: str,
         target: str,
         locations: List[str],
+        allowed_forecast_units: Optional[pd.DataFrame] = None,
         required_reference_dates: Optional[List[str]] = None,
         required_locations: Optional[List[str]] = None,
         required_horizons: Optional[List[str]] = None,
@@ -230,6 +231,18 @@ def _extra_models(
     )
     df["horizon"] = normalize_horizon_strings(df["horizon"])
 
+    if allowed_forecast_units is not None:
+        df["target_end_date"] = pd.to_datetime(df["target_end_date"]).dt.normalize()
+        allowed_forecast_units_normalized = allowed_forecast_units.copy()
+        allowed_forecast_units_normalized["target_end_date"] = pd.to_datetime(
+            allowed_forecast_units_normalized["target_end_date"]
+        ).dt.normalize()
+        df = df.merge(
+            allowed_forecast_units_normalized,
+            on=["reference_date", "target_end_date", "location", "horizon"],
+            how="inner",
+        )
+
     strict_grid_validation_enabled = all(
         value is not None
         for value in (
@@ -252,6 +265,13 @@ def _extra_models(
             df=df,
             model_name=model_name,
             csv_name="hub dataset",
+            normalized_required_reference_dates=normalized_required_reference_dates,
+            normalized_required_locations=normalized_required_locations,
+            normalized_required_horizons=normalized_required_horizons,
+        )
+        _validate_required_challenge_grid(
+            df=df,
+            model_name=model_name,
             normalized_required_reference_dates=normalized_required_reference_dates,
             normalized_required_locations=normalized_required_locations,
             normalized_required_horizons=normalized_required_horizons,
@@ -488,16 +508,30 @@ def extract_model_data_details(
         model_dict[model] = concatenated_df
 
     locations_list = list(set(global_locations_list))
+    allowed_forecast_units = (
+        pd.concat(model_dict.values(), ignore_index=True)[
+            ["reference_date", "target_end_date", "location", "horizon"]
+        ]
+        .drop_duplicates()
+        if model_dict
+        else None
+    )
     
     # get extra model data
     for extra_model in include_models:
+        extra_model_locations = locations_list
+        extra_model_allowed_forecast_units = allowed_forecast_units
+        if strict_grid_validation_enabled:
+            extra_model_locations = list(normalized_required_locations)
+            extra_model_allowed_forecast_units = None
         df = _extra_models(
             hub_path=hub_path,
             model_name=extra_model,
             eval_start_date=eval_start_date,
             eval_end_date=eval_end_date,
             target=target,
-            locations=locations_list,
+            locations=extra_model_locations,
+            allowed_forecast_units=extra_model_allowed_forecast_units,
             required_reference_dates=required_reference_dates,
             required_locations=required_locations,
             required_horizons=required_horizons,

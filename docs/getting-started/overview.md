@@ -11,7 +11,7 @@ Once completing the installation instructions, you will have all EpiBenchmark co
     - `EpiBenchmark_scorecard.csv`: a scorecard, with one value for each metric defined in the challenge metrics
     - `EpiBenchmark_scores.csv`: a scores file, with all scores for all unique forecast units included in your model data
     - Note that your model data must contain every forecast unit combination defined in a challenge in order to be scored against it
-- `epibench plot --config-path`: Using a `--config-path` argument, generate a set of plots for the visual analysis of your model performance in a library challenge
+- `epibench plot <challenge-id> --score-file-path --output-path`: Using your `EpiBenchmark_scores.csv` output produced from a library challenge scoring run, generate a set of plots for the visual analysis of your model performance in a library challenge. Invoking the `<challenge-id>` in your command will include the scores for all of the hub-submitted models that have full coverage of the challenge definition to allow for easy comparison. If you wish to visualize your scores alone, simply run without the `<challenge-id>` (i.e., `epibench plot --score-file-path --output-path`).
 
 When scoring model data for a library challenge, you may only submit one model's data at a time
 
@@ -19,10 +19,10 @@ When scoring model data for a library challenge, you may only submit one model's
 
 - `epibench create --config-path`: A command that fetches and organizes ground truth data (of a specificed vintage) from a forecasting hub. In running this command with your specifications, you will have the vintaged (i.e., un-backfilled) ground truth data necessary to execute model runs from any date(s) of reference. The challenges you create with `epibench create` differ from the challenges in our library – our library challenges are static, and meant to represent specific forecasting requirements.
 -  `epibench score --config-path` to score any model output
-- `epibench plot --config-path` to visualize your scores
+- `epibench plot --score-file-path --ouptut-path` to visualize your scores. The baseline model for the corresponding hub will alwasy be included in scoring and plotting output.
 
 
-When using `epibench create`, `epibench plot`, (or `epibench score` outside of a library challenge), pass a single required `--config-path` flag – the path to a YAML configuration file with the parameters of each run. The configuration file for each command is slightly different; visit the [Configuration templates](configuration-templates.md) page to get copy/pasteable templates, or visit 'Workflows' for thorough explanation of configuration keys.
+When using `epibench create` or `epibench score` outside of a library challenge, pass a single required `--config-path` flag – the path to a YAML configuration file with the parameters of each run. The configuration file for each command is slightly different; visit the [Configuration templates](configuration-templates.md) page to get copy/pasteable templates, or visit 'Workflows' for thorough explanation of configuration keys.
 
 
 While each command is written to build off the others, all of the EpiBenchmark workflows can be run independently (i.e., `epibench create` is not a pre-requesite for `epibench score`, etc.).

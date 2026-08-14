@@ -1,6 +1,6 @@
 # Configuration templates
 
-Only `epibench create`, `epibench score` (for some runs), and `epibench plot` require YAML configuration files. Please see templates below.
+Only `epibench create`, and `epibench score` (when not being used for a library challenge) require YAML configuration files. Please see templates below.
 
 ## `epibench create`
 
@@ -63,12 +63,3 @@ include_models: ["Hub-model-X", "Hub-model-Y"]
 output_path: "/..." # path to where you want output to be saved
 ```
 
-## `epibench plot`
-
-```yaml
----
-
-score_file_path: "path/to/your/EpiBenchmark_scores.csv"
-
-output_path: "/..." # path to where you want output to be saved
-```

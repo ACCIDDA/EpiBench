@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+import logging
+import subprocess
+from urllib.parse import urlparse
 
-from .create_ground_truth import hub_clone_create
+logger = logging.getLogger(__name__)
 
 
 def resolve_path(path_value: str | Path, base_dir: str | Path | None = None) -> Path:
@@ -20,14 +23,8 @@ def resolve_path(path_value: str | Path, base_dir: str | Path | None = None) -> 
     return path.resolve()
 
 
-def resolve_hub_path(hub_path_value: str, base_dir: str | Path | None = None) -> Path:
-    """
-    Resolve and validate a local hub path, or clone a GitHub URL.
-    """
-    if hub_path_value.startswith(("http://", "https://")) and "github.com" in hub_path_value:
-        return hub_clone_create(hub_url=hub_path_value)
-
-    hub_path = resolve_path(hub_path_value, base_dir=base_dir)
+def _validate_hub_directory(hub_path: Path, hub_path_value: str | Path) -> Path:
+    """Validate that a resolved local hub path has the expected structure."""
     if not hub_path.is_dir():
         raise ValueError(
             f"`hub_path` ({hub_path_value}) either does not exist on this machine "
@@ -41,11 +38,62 @@ def resolve_hub_path(hub_path_value: str, base_dir: str | Path | None = None) ->
     return hub_path
 
 
-def resolve_output_dir(output_path: str | Path, base_dir: str | Path | None = None) -> Path:
+def establish_hub_path(hub_path_value: str | Path, base_dir: str | Path | None = None) -> Path:
+    """
+    Resolve a hub input to a local directory and update it when possible.
+
+    If `hub_path_value` is a GitHub URL, clone it into the project's `hubs/`
+    directory when missing, otherwise pull the existing clone.
+
+    If `hub_path_value` is a local path, resolve it and pull latest changes when
+    it points to a git repository clone. Non-git local directories are still
+    accepted as long as they have the expected hub structure.
+    """
+    hub_path_str = str(hub_path_value)
+    if hub_path_str.startswith(("http://", "https://")) and "github.com" in hub_path_str:
+        parsed_path = urlparse(hub_path_str).path
+        repo_name = parsed_path.strip("/").split("/")[-1]
+        if repo_name.endswith(".git"):
+            repo_name = repo_name[:-4]
+
+        project_root = Path(__file__).resolve().parents[2]
+        hubs_dir = project_root / "hubs"
+        hub_path = hubs_dir / repo_name
+
+        if hub_path.exists() and hub_path.is_dir():
+            logger.info(f"Updating existing hub repository: {repo_name}")
+            subprocess.run(["git", "pull"], cwd=hub_path, check=True)
+            logger.info("Hub updated successfully.")
+        else:
+            logger.info(f"Cloning hub repository into {hubs_dir}")
+            hubs_dir.mkdir(parents=True, exist_ok=True)
+            subprocess.run(["git", "clone", hub_path_str], cwd=hubs_dir, check=True)
+            logger.info("Hub cloned successfully.")
+
+        return _validate_hub_directory(hub_path, hub_path_str)
+
+    hub_path = resolve_path(hub_path_value, base_dir=base_dir)
+    hub_path = _validate_hub_directory(hub_path, hub_path_value)
+
+    git_dir = hub_path / ".git"
+    if git_dir.exists():
+        logger.info(f"Updating existing local hub repository: {hub_path}")
+        subprocess.run(["git", "pull"], cwd=hub_path, check=True)
+        logger.info("Hub updated successfully.")
+
+    return hub_path
+
+
+def resolve_output_dir(
+    output_path: str | Path,
+    base_dir: str | Path | None = None,
+    files_to_save: list[str] | None = None,
+) -> Path:
     """
     Resolve and validate an output directory path.
 
-    Creates the directory if it does not already exist.
+    Creates the directory if it does not already exist and optionally checks
+    whether expected output filenames would conflict with existing files.
     """
     resolved_output_path = resolve_path(output_path, base_dir=base_dir)
     if resolved_output_path.exists() and not resolved_output_path.is_dir():
@@ -53,4 +101,17 @@ def resolve_output_dir(output_path: str | Path, base_dir: str | Path | None = No
             f"--output-path must be a directory. Received {resolved_output_path}"
         )
     resolved_output_path.mkdir(parents=True, exist_ok=True)
+
+    if files_to_save is not None:
+        conflicting_files = [
+            str(resolved_output_path / filename)
+            for filename in files_to_save
+            if (resolved_output_path / filename).exists()
+        ]
+        if conflicting_files:
+            raise FileExistsError(
+                "The following output file(s) already exist and will not be overwritten: "
+                + ", ".join(conflicting_files)
+            )
+
     return resolved_output_path

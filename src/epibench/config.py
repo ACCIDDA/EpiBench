@@ -7,7 +7,8 @@ from pathlib import Path
 import yaml
 
 from .hub_date_utils import validate_create_dates_against_hub_rounds
-from .path_utils import resolve_hub_path, resolve_output_dir, resolve_path
+from .path_utils import establish_hub_path, resolve_output_dir, resolve_path
+from .scoring_summary import FILTER_SUMMARY_FILENAME
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 class Config:
     def __init__(self, config_path: str, pipeline: str):
 
-        valid_pipelines = ["create", "score", "plot"]
+        valid_pipelines = ["create", "score"]
 
         if pipeline.lower() not in valid_pipelines:
             raise ValueError(f"'pipeline' param must be one of {valid_pipelines}. Received '{pipeline}'.")
@@ -43,9 +44,6 @@ class Config:
             self.validate_create_config()
         elif self.pipeline == "score":
             self.validate_score_config()
-        elif self.pipeline == "plot":
-            self.validate_plot_config()
-
         logger.info("Success ✅")
 
 
@@ -78,7 +76,7 @@ class Config:
             raise KeyError(f"Config file is missing required keys: {missing}")
         
         # `hub-path`-specific key check
-        self.hub_path = resolve_hub_path(self.config["hub_path"], base_dir=self.base_dir)
+        self.hub_path = establish_hub_path(self.config["hub_path"], base_dir=self.base_dir)
         self.challenge_name = self.config.get("challenge_name")
 
         #`challenge_name`-specific key check (no checks right now)
@@ -240,7 +238,7 @@ class Config:
             raise KeyError(f"Config file is missing required keys: {missing}")
         
         # `hub-path`-specific key check
-        self.hub_path = resolve_hub_path(self.config["hub_path"], base_dir=self.base_dir)
+        self.hub_path = establish_hub_path(self.config["hub_path"], base_dir=self.base_dir)
         
         # `evaluation_start_date` and `evaluation_end_date`-specific key check
         # ensure they can be coerced as dates
@@ -317,34 +315,7 @@ class Config:
         
         # `output_path`-specific key check
         self.output_path = resolve_output_dir(
-            self.config["output_path"], base_dir=self.base_dir
-        )
-
-
-    def validate_plot_config(self):
-        """
-        Validate config for the `plot` pipeline.
-
-        Will change, but currently creates attributes:
-        - .score_file_path
-        _ .output_path
-        """
-        required_keys = {"score_file_path", "output_path"}
-        missing = required_keys - set(self.config)
-        if missing:
-            raise KeyError(f"Config file is missing required keys: {missing}")
-
-        score_file_path = self.config["score_file_path"]
-
-        # `score_file_path`-specific key checks
-        self.score_file_path = resolve_path(score_file_path, base_dir=self.base_dir)
-        if not self.score_file_path.exists():
-            raise FileNotFoundError(f"Score file not found: {self.score_file_path}")
-        if not self.score_file_path.is_file():
-            raise ValueError(f"score_file_path must be a file. Received: {self.score_file_path}")
-
-        # `output_path`-specific key checks
-        output_path = self.config["output_path"]
-        self.plot_output_dir = resolve_output_dir(
-            output_path, base_dir=self.base_dir
+            self.config["output_path"],
+            base_dir=self.base_dir,
+            files_to_save=["EpiBenchmark_scores.csv", FILTER_SUMMARY_FILENAME],
         )

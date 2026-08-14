@@ -1,8 +1,6 @@
 """Start of the `score` pipeline."""
 
-import json
 import logging
-from importlib import resources
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Set, Tuple, Union
 
@@ -11,15 +9,18 @@ import pandas as pd
 
 from .config import Config
 from .extract_model_data_details import extract_model_data_details
+from .load_library_challenge import load_library_challenge
 from .scoring_ground_truth import ScoringGroundTruth
-from .create_ground_truth import hub_clone_create
-from .path_utils import resolve_output_dir, resolve_path
+from .path_utils import establish_hub_path, resolve_output_dir, resolve_path
 from .quantile_validation import (
     validate_for_scoring_config_quantiles,
     validate_for_scoring_library_challenge_quantiles,
 )
 from .scoring_summary import (
+    FILTER_SUMMARY_FILENAME,
     build_config_missing_forecast_units_summary,
+    build_extra_model_forecast_unit_coverage_summary,
+    format_extra_model_coverage_warning,
     format_missing_forecast_units_warning,
     write_excluded_files_summary,
 )
@@ -31,28 +32,6 @@ logger = logging.getLogger(__name__)
 
 SCORES_FILENAME = "EpiBenchmark_scores.csv" # TODO, will be changed with hash, shoudl be challenge-name
 SCORECARD_FILENAME = "EpiBenchmark_scorecard.csv" # TODO, will be changed with hash, should be challenge-name
-
-def _load_library_challenge(challenge_name: str) -> Dict[str, object]:
-    """Load one EpiBenchmark library challenge from the challenges-library directory."""
-    challenges_dir = resources.files("epibench").joinpath("challenges-library")
-    requested_name = Path(challenge_name).stem
-
-    available_challenge_files = {
-        challenge_path.stem: challenge_path
-        for challenge_path in challenges_dir.iterdir()
-        if challenge_path.is_file() and challenge_path.suffix.lower() == ".json"
-    }
-
-    challenge_path = available_challenge_files.get(requested_name)
-    if challenge_path is None:
-        available_challenge_names = ", ".join(sorted(available_challenge_files))
-        raise click.ClickException(
-            "that challenge is not in the EpiBenchmark challenge library. "
-            f"Available challenges: {available_challenge_names}"
-        )
-
-    with challenge_path.open("r", encoding="utf-8") as challenges_file:
-        return json.load(challenges_file)
 
 
 def _write_output_csv(
@@ -70,15 +49,10 @@ def _write_output_csv(
     if output_kind == "scores":
         output_path = output_dir / SCORES_FILENAME
         output_df = output_data
-        error_label = "Score"
     # name for scorecard csv
     else:
         output_path = output_dir / SCORECARD_FILENAME
         output_df = pd.DataFrame([output_data])
-        error_label = "Scorecard"
-    # no overwrites
-    if output_path.exists():
-        raise FileExistsError(f"{error_label} output file already exists and will not be overwritten: {output_path}")
     # ensure type coercion worked
     if not isinstance(output_df, pd.DataFrame):
         raise TypeError("Score output data must be a pandas DataFrame.")
@@ -147,11 +121,31 @@ def _score_from_config(config_path: str) -> None:
         for model_name in config_object.model_info
         if model_name in model_dict
     }
+    extra_model_dict = {
+        model_name: model_dict[model_name]
+        for model_name in config_object.include_models
+        if model_name in model_dict
+    }
     missing_forecast_units_summary = build_config_missing_forecast_units_summary(
         submitted_model_dict
     )
     missing_forecast_units_warning = format_missing_forecast_units_warning(
         missing_forecast_units_summary
+    )
+    extra_model_coverage_summary = build_extra_model_forecast_unit_coverage_summary(
+        submitted_model_dict,
+        extra_model_dict,
+    )
+    extra_model_coverage_warning = format_extra_model_coverage_warning(
+        extra_model_coverage_summary
+    )
+    summary_warning_blocks = "\n\n---\n\n".join(
+        warning
+        for warning in (
+            missing_forecast_units_warning,
+            extra_model_coverage_warning,
+        )
+        if warning
     )
     global_target_end_dates = []
     if missing_forecast_units_summary is not None:
@@ -189,7 +183,7 @@ def _score_from_config(config_path: str) -> None:
         target=config_object.target,
         output_dir=config_object.output_path,
         target_end_dates=global_target_end_dates,
-        missing_forecast_units_warning=missing_forecast_units_warning,
+        missing_forecast_units_warning=summary_warning_blocks,
     )
     logger.info("Process executed successfully to end 🎉.")
     logger.info(f"Output file at {full_output_path}")
@@ -205,11 +199,18 @@ def _score_from_challenge_library(
     """Run challenge library scoring (scores CSV + scorecard)"""
 
     logger.info("Loading challenge library...")
-    challenge_definition = _load_library_challenge(challenge_name)
+    challenge_definition = load_library_challenge(challenge_name)
     logger.info(f"Successfully loaded library challenge: {challenge_name} ✅")
 
     model_name, model_info, _ = _resolve_model_info(model_data_path, model_name)
-    output_dir = resolve_output_dir(output_path)
+    output_dir = resolve_output_dir(
+        output_path,
+        files_to_save=[
+            SCORES_FILENAME,
+            SCORECARD_FILENAME,
+            FILTER_SUMMARY_FILENAME,
+        ],
+    )
 
     # set quantiles
     quantiles = challenge_definition["quantiles"]
@@ -228,7 +229,7 @@ def _score_from_challenge_library(
     evaluation_end_date = max(reference_date_series + max(horizon_offsets))
 
     # ensure hub clone
-    hub_path = hub_clone_create(hub_url=challenge_definition["hub_path"])
+    hub_path = establish_hub_path(challenge_definition["hub_path"])
 
     # set baseline model, add to include models list
     baseline_model = challenge_definition["baseline_model"]

@@ -1,6 +1,5 @@
 """
 Functions associated with:
-    - cloning/updating a hub (hub_clone_create())
     - retrieving vintaged gt data via `git checkout` (_checkout_gt_fetch() exposed via gt_from_hub())
     - retrieving vintaged gt data via timeseries.csv "as_of" col (_asof_gt_fetch() exposed via gt_from_hub())
     - retrieving non-vintaged gt data via timeseries.csv "as_of" col (_asof_gt_fetch() exposed via gt_from_hub())
@@ -12,9 +11,7 @@ ground truth data retreived via "as_of" column comes from timeseries.csv.
 import pandas as pd
 import pygit2
 import logging
-import subprocess
 import importlib
-from urllib.parse import urlparse
 from pathlib import Path
 from datetime import datetime
 from contextlib import contextmanager
@@ -184,38 +181,6 @@ def _asof_gt_fetch(
             # possible check to have, but this should never trigger because 
             # target_end_date should remain in pseudo synchronicity w/ as_of
         return gt, date_s
-
-
-def hub_clone_create(hub_url: str) -> Path:
-    """
-    Clone the hub repo given a GitHub URL, or pull if a clone already exists.
-    """
-    # get name of repo
-    parsed_path = urlparse(hub_url).path
-    repo_name = parsed_path.strip("/").split("/")[-1]
-    if repo_name.endswith(".git"):
-        repo_name = repo_name[:-4]
-
-    # get project root direcotry
-    project_root = Path(__file__).resolve().parents[2]
-    # create hub folder under project root directory
-    hubs_dir = project_root / "hubs"
-    # create repo folder under hub folder
-    hub_path = hubs_dir / repo_name
-
-    # clone if it hasn't been yet, otherwise pull to update
-    if hub_path.exists() and hub_path.is_dir():
-        logger.info(f"Updating existing hub repository: {repo_name}")
-        subprocess.run(['git', 'pull'], cwd=hub_path, check=True)
-        logger.info("Hub updated successfully ✅")
-    else:
-        logger.info(f"Cloning hub repository into {hubs_dir}")
-        hubs_dir.mkdir(parents=True, exist_ok=True)
-        subprocess.run(['git', 'clone', hub_url], cwd=hubs_dir, check=True)
-        logger.info("Hub cloned successfully ✅")
-
-    return hub_path 
-
 
 def gt_from_hub(
         hub_path: Path, 
