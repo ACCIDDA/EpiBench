@@ -1,12 +1,44 @@
 """Function to get model data for models with 'complete' challenge satisfaction, prepare for scoring."""
 
 import datetime
-import pandas as pd
 import logging
 from pathlib import Path
+
+import pandas as pd
 from hubdata import connect_hub
 
+from .scoring_ground_truth import ScoringGroundTruth
+
 logger = logging.getLogger(__name__) 
+
+
+def _add_ground_truth_for_scoring(hub_path: Path, model_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Add an `observed` column to processed model data by matching forecast  
+    units with ground truth data retrieved via ScoringGroundTruth class.
+    """
+
+    # establish facets
+    locations = sorted({str(location) for location in model_df["location"]})
+    target = str(model_df["target"].iloc[0])
+    eval_start_date = pd.to_datetime(model_df["target_end_date"]).min()
+    eval_end_date = pd.to_datetime(model_df["target_end_date"]).max()
+
+    # initialize `gto` object
+    gto = ScoringGroundTruth(
+        hub_path=hub_path,
+        target=target,
+        locations=locations,
+        eval_start_date=eval_start_date,
+        eval_end_date=eval_end_date,
+    )
+    
+    # match with model_df, return
+    return model_df.merge(
+        gto.gt,
+        on=["target", "target_end_date", "location"],
+        how="left",
+    ).drop(columns=["target"])
 
 
 def prep_complete_models_for_plotting(
@@ -36,6 +68,7 @@ def prep_complete_models_for_plotting(
 
     # connect to hub
     full_hub_df = connect_hub(hub_path=hub_path).to_table().to_pandas()
+    logger.info("Hub connection established.")
 
     # get data types the way we want them
     full_hub_df['location'] = full_hub_df['location'].astype('string')
@@ -62,7 +95,16 @@ def prep_complete_models_for_plotting(
 
     # re-concatenate filtered model data, put columns in scoringutils format
     df = pd.concat(filtered_model_data.values(), ignore_index=True)
-    df.rename(columns={"model_id": "model", "output_type_id": "quantile_level", "value": "predicted"})
+    df = df.rename(columns={"model_id": "model", "output_type_id": "quantile_level", "value": "predicted"})
+    # ensure target_end_date dtype will match that of the gt file fetched
+    df["target_end_date"] = pd.to_datetime(df["target_end_date"], errors="raise")
+    # set horizons back to strings
+    df["horizon"] = df["horizon"].astype("string")
+
+    # add `observed` column to df, match based on forecast unit
+    df = _add_ground_truth_for_scoring(hub_path=hub_path, model_df=df)
+    # set dates back to strings
+    df["target_end_date"] = df["target_end_date"].astype("string")
 
     logger.info("Success ✅")
     return df

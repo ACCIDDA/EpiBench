@@ -63,12 +63,12 @@ def establish_hub_path(hub_path_value: str | Path, base_dir: str | Path | None =
         if hub_path.exists() and hub_path.is_dir():
             logger.info(f"Updating existing hub repository: {repo_name}")
             subprocess.run(["git", "pull"], cwd=hub_path, check=True)
-            logger.info("Hub updated successfully ✅")
+            logger.info("Hub updated successfully.")
         else:
             logger.info(f"Cloning hub repository into {hubs_dir}")
             hubs_dir.mkdir(parents=True, exist_ok=True)
             subprocess.run(["git", "clone", hub_path_str], cwd=hubs_dir, check=True)
-            logger.info("Hub cloned successfully ✅")
+            logger.info("Hub cloned successfully.")
 
         return _validate_hub_directory(hub_path, hub_path_str)
 
@@ -79,7 +79,7 @@ def establish_hub_path(hub_path_value: str | Path, base_dir: str | Path | None =
     if git_dir.exists():
         logger.info(f"Updating existing local hub repository: {hub_path}")
         subprocess.run(["git", "pull"], cwd=hub_path, check=True)
-        logger.info("Hub updated successfully ✅")
+        logger.info("Hub updated successfully.")
 
     return hub_path
 

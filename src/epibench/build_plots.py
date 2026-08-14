@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize, TwoSlopeNorm
 import numpy as np
 import pandas as pd
-import logger
+import logging
 
 logger = logging.getLogger(__name__)
 

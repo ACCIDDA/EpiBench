@@ -96,7 +96,7 @@ def _plot_from_challenge_library(
     hub_path = establish_hub_path(hub_path_value=challenge_definition["hub_path"])
     complete_models = challenge_definition["complete_models"]
     # if the user's model is referenced by name in `complete_models`, drop from list
-    if users_model_name.isin(complete_models):
+    if users_model_name in (complete_models):
         complete_models.remove(users_model_name)
     valid_locations = challenge_definition["locations"]
     valid_quantiles = challenge_definition["quantiles"]
@@ -121,6 +121,7 @@ def _plot_from_challenge_library(
 
     # concatenate complete models' scores with user-provided score file
     combined_scores_df = pd.concat([complete_models_scores, users_scores], ignore_index=True)
+    combined_scores_df["reference_date"] = pd.to_datetime(combined_scores_df["reference_date"], errors="raise")
 
     # build plots
     logger.info("Building figures...")
