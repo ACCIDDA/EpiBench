@@ -7,7 +7,8 @@ from pathlib import Path
 import yaml
 
 from .hub_date_utils import validate_create_dates_against_hub_rounds
-from .path_utils import resolve_hub_path, resolve_output_dir, resolve_path
+from .path_utils import establish_hub_path, resolve_output_dir, resolve_path
+from .scoring_summary import FILTER_SUMMARY_FILENAME
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,7 @@ class Config:
             raise KeyError(f"Config file is missing required keys: {missing}")
         
         # `hub-path`-specific key check
-        self.hub_path = resolve_hub_path(self.config["hub_path"], base_dir=self.base_dir)
+        self.hub_path = establish_hub_path(self.config["hub_path"], base_dir=self.base_dir)
         self.challenge_name = self.config.get("challenge_name")
 
         #`challenge_name`-specific key check (no checks right now)
@@ -237,7 +238,7 @@ class Config:
             raise KeyError(f"Config file is missing required keys: {missing}")
         
         # `hub-path`-specific key check
-        self.hub_path = resolve_hub_path(self.config["hub_path"], base_dir=self.base_dir)
+        self.hub_path = establish_hub_path(self.config["hub_path"], base_dir=self.base_dir)
         
         # `evaluation_start_date` and `evaluation_end_date`-specific key check
         # ensure they can be coerced as dates
@@ -314,5 +315,7 @@ class Config:
         
         # `output_path`-specific key check
         self.output_path = resolve_output_dir(
-            self.config["output_path"], base_dir=self.base_dir
+            self.config["output_path"],
+            base_dir=self.base_dir,
+            files_to_save=["EpiBenchmark_scores.csv", FILTER_SUMMARY_FILENAME],
         )

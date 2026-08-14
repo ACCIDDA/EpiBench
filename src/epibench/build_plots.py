@@ -1,4 +1,4 @@
-"""Helpers for loading score data and building EpiBench plot figures."""
+"""Logic for loading score data and building EpiBench plots."""
 
 from __future__ import annotations
 
@@ -9,6 +9,9 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize, TwoSlopeNorm
 import numpy as np
 import pandas as pd
+import logger
+
+logger = logging.getLogger(__name__)
 
 
 REQUIRED_COLUMNS = {
@@ -97,7 +100,7 @@ def load_scores(score_file_path: Path) -> pd.DataFrame:
             "Score file contains duplicate forecast-score rows for composite key "
             f"{UNIQUE_KEY_COLUMNS}. Duplicate row count: {duplicate_count}."
         )
-
+    logger.info("Success ✅")
     return score_df.sort_values(["reference_date", "target_end_date", "location", "model", "horizon"])
 
 
