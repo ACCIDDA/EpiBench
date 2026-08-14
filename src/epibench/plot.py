@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import logging
+from importlib import resources
+from pathlib import Path
 from typing import Optional
 
 import click
@@ -15,6 +18,29 @@ from .path_utils import resolve_output_dir, resolve_path
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _load_library_challenge(challenge_name: str) -> dict[str, object]:
+    """Load one EpiBenchmark library challenge from the challenges-library directory."""
+    challenges_dir = resources.files("epibench").joinpath("challenges-library")
+    requested_name = Path(challenge_name).stem
+
+    available_challenge_files = {
+        challenge_path.stem: challenge_path
+        for challenge_path in challenges_dir.iterdir()
+        if challenge_path.is_file() and challenge_path.suffix.lower() == ".json"
+    }
+
+    challenge_path = available_challenge_files.get(requested_name)
+    if challenge_path is None:
+        available_challenge_names = ", ".join(sorted(available_challenge_files))
+        raise click.ClickException(
+            "that challenge is not in the EpiBenchmark challenge library. "
+            f"Available challenges: {available_challenge_names}"
+        )
+
+    with challenge_path.open("r", encoding="utf-8") as challenges_file:
+        return json.load(challenges_file)
 
 
 def _plot_from_score_file(score_file_path: str, output_path: str) -> None:
@@ -49,6 +75,7 @@ def _plot_from_challenge_library(
     challenge_name: str,
     score_file_path: str,
     output_path: str,
+    challenge_definition: dict[str, object],
 ) -> None:
     """Run challenge-library plotting workflow."""
     logger.info(
@@ -57,6 +84,7 @@ def _plot_from_challenge_library(
         score_file_path,
         output_path,
     )
+    complete_models = challenge_definition.get("complete_models", [])
     # PUT NEW PLOT LOGIC HERE
     raise NotImplementedError(
         "Library challenge plotting is not implemented yet."
@@ -91,8 +119,10 @@ def plot(
         )
         return
 
+    challenge_definition = _load_library_challenge(challenge_name)
     _plot_from_challenge_library(
         challenge_name=challenge_name,
         score_file_path=score_file_path,
         output_path=output_path,
+        challenge_definition=challenge_definition,
     )
