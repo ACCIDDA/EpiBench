@@ -4,8 +4,8 @@ Functions associated with:
     - retrieving vintaged gt data via timeseries.csv "as_of" col (_asof_gt_fetch() exposed via gt_from_hub())
     - retrieving non-vintaged gt data via timeseries.csv "as_of" col (_asof_gt_fetch() exposed via gt_from_hub())
 
-Ground truth data retreived via `git checkout` comes from oracle-output.csv/.parquet,
-ground truth data retreived via "as_of" column comes from timeseries.csv.
+Ground truth data retrieved via `git checkout` and via the "as_of" column comes
+from timeseries.csv/.parquet.
 """
 
 import pandas as pd
@@ -20,6 +20,14 @@ from hubdata.create_target_data_schema import TargetType
 
 logger = logging.getLogger(__name__)
 hub_target_data_schema_module = importlib.import_module("hubdata.create_target_data_schema")
+
+REQ_COLUMNS = {
+    "target_end_date",
+    "as_of",
+    "location",
+    "target",
+    "observation",
+}
 
 
 @contextmanager
@@ -54,12 +62,12 @@ def _checkout_gt_fetch(hub_path: Path, targets: list, date: str, main_branch="ma
 
     This function is for vintaging=True runs, where it is important
     to fetch the gt data that was available at the given date. It does this
-    by checking out `main` of the repo at a specified hub_path, pulling the
-    oracle-output gt file, restoring the repo, and returning the file.
+    by checking out `main` of the repo at a specified hub_path, reading the
+    time-series gt file from that checkout, restoring the repo, and returning
+    the file.
     """ 
     # convert str date to datetime date; set to EOD to capture any commits that happened that day
     date_obj = datetime.strptime(date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
-    # fetches from oracle-ouput.parquet/csv only (because it's in all 3 hubs) <- can change? ask joseph
     repo = pygit2.Repository(hub_path)
 
     commit = repo[repo.head.target]
@@ -84,17 +92,41 @@ def _checkout_gt_fetch(hub_path: Path, targets: list, date: str, main_branch="ma
     
     try:
         target_dir = hub_path / "target-data"
-        parquet_file = target_dir / "oracle-output.parquet"
-        csv_file = target_dir / "oracle-output.csv"
+        parquet_file = target_dir / "time-series.parquet"
+        csv_file = target_dir / "time-series.csv"
         if parquet_file.exists():
-            df = pd.read_parquet(parquet_file) #TODO read in with the columns to have correct dtype (cast str)
+            df = pd.read_parquet(parquet_file) 
         elif csv_file.exists():
-            df = pd.read_csv(csv_file, low_memory=False) #TODO read in with the columns to have correct dtype (cast str)
+            df = pd.read_csv(csv_file, low_memory=False) 
         else:
-            raise FileNotFoundError(f"Could not find ground truth file (oracle-output .csv or .parquet) in {target_dir}.")
+            raise FileNotFoundError(f"Could not find ground truth file (time-series .csv or .parquet) in {target_dir}.")
+
+        missing_columns = REQ_COLUMNS.difference(df.columns)
+        if missing_columns:
+            raise ValueError(
+                "Ground truth time-series data is missing required column(s): "
+                f"{', '.join(sorted(missing_columns))}."
+            )
+
         df = df[df['target'].isin(targets)]
         if df.empty:
             raise ValueError(f"Could not find targets {targets} in ground truth data")
+
+        # TODO, perhaps not make this fatal? not sure if the next block will fail if it encounters an NA 
+        as_of_sort_values = pd.to_datetime(df["as_of"], errors="coerce")
+        if as_of_sort_values.isna().any():
+            raise ValueError("Ground truth time-series data contains missing or invalid `as_of` values.")
+
+        # Keep the newest revision for records repeated across time-series vintages.
+        df = (
+            df.assign(_as_of_sort_value=as_of_sort_values)
+            .sort_values(by="_as_of_sort_value", kind="stable")
+            .drop_duplicates(
+                subset=["target_end_date", "location", "target", "observation"],
+                keep="last",
+            )
+            .drop(columns="_as_of_sort_value")
+        )
         return df
     finally: # reset the repo to the head so that we can use it again
         branch_ref = "refs/heads/" + main_branch
