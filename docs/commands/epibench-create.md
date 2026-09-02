@@ -52,7 +52,7 @@ output_path/
 
 Where each requested date of reference has its own folder and file within the `gt/` directory, and the `task_list.csv` file give relative paths to ground truth data files for each date of reference.
 
-Each generated ground truth file uses the standardized columns `target_end_date`, `location`, and `observed`.
+Each generated ground truth file uses the standardized columns `target_end_date`, `location`, `target`, and `observed`.
 
 ## example usage
 

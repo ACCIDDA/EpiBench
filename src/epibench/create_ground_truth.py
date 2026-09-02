@@ -140,9 +140,10 @@ def _keep_output_columns(
     date_column: str,
     location_column: str,
     observed_column: str,
+    target: str,
 ) -> pd.DataFrame:
-    """Return standardized create-pipeline columns, including ``observed``."""
-    return (
+    """Return standardized create-pipeline columns, including ``target`` and ``observed``."""
+    standardized_df = (
         df.loc[:, [date_column, location_column, observed_column]]
         .rename(
             columns={
@@ -153,6 +154,8 @@ def _keep_output_columns(
         )
         .copy()
     )
+    standardized_df["target"] = df["target"] if "target" in df.columns else target
+    return standardized_df.loc[:, ["target_end_date", "location", "target", "observed"]]
 
 
 def _checkout_gt_fetch(
@@ -206,7 +209,7 @@ def _checkout_gt_fetch(
             )
 
         return (
-            _keep_output_columns(gt, date_column, location_column, observed_column),
+            _keep_output_columns(gt, date_column, location_column, observed_column, target),
             target_column_found,
         )
     finally:
@@ -236,7 +239,7 @@ def _asof_gt_fetch(
         )
 
     return (
-        _keep_output_columns(gt, date_column, location_column, observed_column),
+        _keep_output_columns(gt, date_column, location_column, observed_column, target),
         cutoff_date,
         target_column_found,
     )
