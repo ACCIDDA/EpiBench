@@ -13,7 +13,6 @@ import pygit2
 logger = logging.getLogger(__name__)
 hub_target_data_schema_module = importlib.import_module("hubdata.create_target_data_schema")
 
-BASE_COLUMNS = ["target_end_date", "location"]
 AS_OF_COLUMN = "as_of"
 
 
@@ -94,12 +93,16 @@ def _filter_target_if_present(df: pd.DataFrame, target: str) -> tuple[pd.DataFra
     return filtered_df, True
 
 
-def _vintage_key_columns(df: pd.DataFrame) -> list[str]:
+def _vintage_key_columns(
+    df: pd.DataFrame, date_column: str, location_column: str
+) -> list[str]:
     """Return the available dimensions that identify one ground truth observation."""
-    return [*BASE_COLUMNS, *(["target"] if "target" in df.columns else [])]
+    return [date_column, location_column, *(["target"] if "target" in df.columns else [])]
 
 
-def _select_as_of_vintage(df: pd.DataFrame, vintage_date: str) -> pd.DataFrame:
+def _select_as_of_vintage(
+    df: pd.DataFrame, vintage_date: str, date_column: str, location_column: str
+) -> pd.DataFrame:
     """Keep each target/date/location's newest revision available on ``vintage_date``."""
     as_of_values = pd.to_datetime(df[AS_OF_COLUMN], errors="coerce")
     if as_of_values.isna().any():
@@ -116,23 +119,38 @@ def _select_as_of_vintage(df: pd.DataFrame, vintage_date: str) -> pd.DataFrame:
     # Stable sorting makes an exact as_of tie resolve to the later source-file row.
     return (
         available_df.sort_values(by="_as_of_sort_value", kind="stable")
-        .drop_duplicates(subset=_vintage_key_columns(available_df), keep="last")
+        .drop_duplicates(
+            subset=_vintage_key_columns(available_df, date_column, location_column),
+            keep="last",
+        )
         .drop(columns="_as_of_sort_value")
     )
 
 
-def _filter_to_cutoff_target_end_date(df: pd.DataFrame, cutoff_date: str) -> pd.DataFrame:
+def _filter_to_cutoff_target_end_date(
+    df: pd.DataFrame, cutoff_date: str, date_column: str
+) -> pd.DataFrame:
     """Keep observations whose target end date is no later than the requested cutoff."""
-    target_end_dates = pd.to_datetime(df["target_end_date"], errors="coerce")
+    target_end_dates = pd.to_datetime(df[date_column], errors="coerce")
     return df.loc[target_end_dates <= pd.Timestamp(cutoff_date)].copy()
 
 
-def _keep_output_columns(df: pd.DataFrame, keep_columns: list[str]) -> pd.DataFrame:
+def _keep_output_columns(
+    df: pd.DataFrame,
+    date_column: str,
+    location_column: str,
+    observed_column: str,
+) -> pd.DataFrame:
     """Return standardized create-pipeline columns, including ``observed``."""
-    observed_column = keep_columns[-1]
     return (
-        df.loc[:, keep_columns]
-        .rename(columns={observed_column: "observed"})
+        df.loc[:, [date_column, location_column, observed_column]]
+        .rename(
+            columns={
+                date_column: "target_end_date",
+                location_column: "location",
+                observed_column: "observed",
+            }
+        )
         .copy()
     )
 
@@ -141,7 +159,9 @@ def _checkout_gt_fetch(
     hub_path: Path,
     gt_file: str,
     target: str,
-    keep_columns: list[str],
+    observed_column: str,
+    location_column: str,
+    date_column: str,
     date: str,
     main_branch: str = "main",
 ) -> tuple[pd.DataFrame, bool]:
@@ -174,18 +194,21 @@ def _checkout_gt_fetch(
 
     try:
         gt = _read_ground_truth_file(hub_path, gt_file)
-        _validate_columns(gt, keep_columns)
+        _validate_columns(gt, [date_column, location_column, observed_column])
         gt, target_column_found = _filter_target_if_present(gt, target)
 
         if AS_OF_COLUMN in gt.columns:
-            gt = _select_as_of_vintage(gt, date)
-        elif gt.duplicated(subset=_vintage_key_columns(gt)).any():
+            gt = _select_as_of_vintage(gt, date, date_column, location_column)
+        elif gt.duplicated(subset=_vintage_key_columns(gt, date_column, location_column)).any():
             raise ValueError(
                 "Ground truth data contains duplicate target_end_date/location combinations "
                 "but has no `as_of` column to select a vintage."
             )
 
-        return _keep_output_columns(gt, keep_columns), target_column_found
+        return (
+            _keep_output_columns(gt, date_column, location_column, observed_column),
+            target_column_found,
+        )
     finally:
         repo.checkout(f"refs/heads/{main_branch}", strategy=pygit2.GIT_CHECKOUT_FORCE)
 
@@ -194,23 +217,29 @@ def _asof_gt_fetch(
     hub_path: Path,
     gt_file: str,
     target: str,
-    keep_columns: list[str],
+    observed_column: str,
+    location_column: str,
+    date_column: str,
     date_s: list[str] | str,
 ) -> tuple[pd.DataFrame, str, bool]:
     """Fetch configured ground truth and select the newest as-of revision per key."""
     cutoff_date = max(date_s) if isinstance(date_s, list) else date_s
     gt = _read_ground_truth_file(hub_path, gt_file)
-    _validate_columns(gt, [*keep_columns, AS_OF_COLUMN])
+    _validate_columns(gt, [date_column, location_column, observed_column, AS_OF_COLUMN])
     gt, target_column_found = _filter_target_if_present(gt, target)
-    gt = _select_as_of_vintage(gt, cutoff_date)
-    gt = _filter_to_cutoff_target_end_date(gt, cutoff_date)
+    gt = _select_as_of_vintage(gt, cutoff_date, date_column, location_column)
+    gt = _filter_to_cutoff_target_end_date(gt, cutoff_date, date_column)
 
     if gt.empty:
         raise ValueError(
             f"Ground truth data does not contain target {target!r} through {cutoff_date}."
         )
 
-    return _keep_output_columns(gt, keep_columns), cutoff_date, target_column_found
+    return (
+        _keep_output_columns(gt, date_column, location_column, observed_column),
+        cutoff_date,
+        target_column_found,
+    )
 
 
 def gt_from_hub(
@@ -219,13 +248,13 @@ def gt_from_hub(
     reference_dates: list[str],
     gt_file: str,
     observed_column: str,
+    location_column: str,
+    date_column: str,
     data_cutoff_dates: list[str],
     vintaging: bool,
     vintaging_method: str | None,
 ) -> dict[str, pd.DataFrame]:
     """Fetch configured ground truth with the requested vintaging strategy."""
-    keep_columns = [*BASE_COLUMNS, observed_column]
-
     if len(reference_dates) != len(data_cutoff_dates):
         raise ValueError("`reference_dates` and `data_cutoff_dates` must have the same length.")
 
@@ -238,7 +267,9 @@ def gt_from_hub(
                     hub_path=hub_path,
                     gt_file=gt_file,
                     target=target,
-                    keep_columns=keep_columns,
+                    observed_column=observed_column,
+                    location_column=location_column,
+                    date_column=date_column,
                     date=cutoff_date,
                 )
                 gt_dict[str(reference_date)] = gt
@@ -247,7 +278,9 @@ def gt_from_hub(
                     hub_path=hub_path,
                     gt_file=gt_file,
                     target=target,
-                    keep_columns=keep_columns,
+                    observed_column=observed_column,
+                    location_column=location_column,
+                    date_column=date_column,
                     date_s=cutoff_date,
                 )
                 gt_dict[str(reference_date)] = gt
@@ -259,7 +292,9 @@ def gt_from_hub(
             hub_path=hub_path,
             gt_file=gt_file,
             target=target,
-            keep_columns=keep_columns,
+            observed_column=observed_column,
+            location_column=location_column,
+            date_column=date_column,
             date_s=data_cutoff_dates,
         )
         gt_dict[str(reference_dates[-1])] = gt
@@ -272,7 +307,7 @@ def gt_from_hub(
         )
     if target_column_presence and not target_column_presence[0]:
         logger.warning(
-            "Unable to verify configured target %r because the ground truth data does not "
+            "Unable to verify configured target %r because the ground truth data file does not "
             "contain a `target` column.",
             target,
         )

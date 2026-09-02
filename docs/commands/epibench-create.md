@@ -4,11 +4,15 @@ Running `epibench create --config-path "../.."` will fetch and orgnize vintaged 
 
 ## Config file 
 
-The configuration file for an `epibench create` run takes in up to eight keys: 
+The configuration file for an `epibench create` run takes in the following keys:
 
 * `hub_path`: a path to a local hub repo clone, or to a hub GitHub repo URL 
 * `challenge_name`: whatever name you would like to give the "challenge" you are defining
 * `target`: the single target whose ground truth you would like to fetch; it must exactly match the source data when that data contains a `target` column
+* `ground_truth_file`: a relative path, from the hub root, to the CSV or Parquet ground truth file
+* `observed_column_name`: the source column containing observed values
+* `location_column_name`: the source column containing locations
+* `date_column_name`: the source column containing target end dates
 * `dates`: which dates of reference you want to fetch ground truth data for (`YYYY-MM-DD`)
     * this can be passes as a list of individually-specified dates, 
     * or as a dictionary with three keys: `start_date`, `end_date`, `freq`
@@ -47,6 +51,8 @@ output_path/
 ```
 
 Where each requested date of reference has its own folder and file within the `gt/` directory, and the `task_list.csv` file give relative paths to ground truth data files for each date of reference.
+
+Each generated ground truth file uses the standardized columns `target_end_date`, `location`, and `observed`.
 
 ## example usage
 

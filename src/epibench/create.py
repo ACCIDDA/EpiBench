@@ -28,6 +28,8 @@ def create(config_path=None):
     # .gt_cutoff_dates (list of dates as strs)
     # .ground_truth_file (str)
     # .observed_column_name (str)
+    # .location_column_name (str)
+    # .date_column_name (str)
     # .vintaging (bool)
     # .vintaging_method (str | None)
     # .vintaging_offset (int)
@@ -41,6 +43,8 @@ def create(config_path=None):
         reference_dates=config_object.dates,
         gt_file=config_object.ground_truth_file,
         observed_column=config_object.observed_column_name,
+        location_column=config_object.location_column_name,
+        date_column=config_object.date_column_name,
         data_cutoff_dates=config_object.gt_cutoff_dates,
         vintaging=config_object.vintaging,
         vintaging_method=config_object.vintaging_method
@@ -126,6 +130,10 @@ def _build_challenge_id(config_object: Config) -> str:
     hash_input = {
         "hub_name": hub_name,
         "target": config_object.target,
+        "ground_truth_file": config_object.ground_truth_file,
+        "observed_column_name": config_object.observed_column_name,
+        "location_column_name": config_object.location_column_name,
+        "date_column_name": config_object.date_column_name,
         "dates": config_object.dates,
         "vintaging": config_object.vintaging,
         "vintaging_method": config_object.vintaging_method,

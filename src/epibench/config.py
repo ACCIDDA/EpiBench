@@ -59,6 +59,8 @@ class Config:
         - .gt_cutoff_dates
         - .ground_truth_file
         - .observed_column_name
+        - .location_column_name
+        - .date_column_name
         - .vintaging
         - .vintaging_method (None if not vintaging)
         - .vintaging_offset (None if not vintaging)
@@ -71,6 +73,8 @@ class Config:
         "target",
         "ground_truth_file",
         "observed_column_name",
+        "location_column_name",
+        "date_column_name",
         "dates", 
         "vintaging", 
         "output_path"
@@ -105,10 +109,15 @@ class Config:
             raise ValueError("`ground_truth_file` must point to a .csv or .parquet file.")
         self.ground_truth_file = str(ground_truth_file)
 
-        # `observed_column_name`-specific key check
-        self.observed_column_name = str(self.config["observed_column_name"])
-        if not self.observed_column_name:
-            raise ValueError("`observed_column_name` must be a non-empty string.")
+        for key in (
+            "observed_column_name",
+            "location_column_name",
+            "date_column_name",
+        ):
+            value = self.config[key]
+            if not isinstance(value, str) or not value:
+                raise ValueError(f"`{key}` must be a non-empty string.")
+            setattr(self, key, value)
 
         # `dates` -specific key check 
         dates = self.config['dates'] 

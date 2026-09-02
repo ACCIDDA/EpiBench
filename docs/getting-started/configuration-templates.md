@@ -13,6 +13,11 @@ challenge_name: "whatever-you-want-to-call-this"
 
 target: "target-name" # one target per create run; match must be exact
 
+ground_truth_file: "target-data/time-series.parquet" # relative to the hub root
+observed_column_name: "observation"
+location_column_name: "location"
+date_column_name: "target_end_date"
+
 dates: {
     start_date: YYYY-MM-DD, # dates are inclusive on both ends [,]
     end_date: YYYY-MM-DD,
