@@ -128,8 +128,13 @@ def _filter_to_cutoff_target_end_date(df: pd.DataFrame, cutoff_date: str) -> pd.
 
 
 def _keep_output_columns(df: pd.DataFrame, keep_columns: list[str]) -> pd.DataFrame:
-    """Return only the columns required by downstream create-pipeline consumers."""
-    return df.loc[:, keep_columns].copy()
+    """Return standardized create-pipeline columns, including ``observed``."""
+    observed_column = keep_columns[-1]
+    return (
+        df.loc[:, keep_columns]
+        .rename(columns={observed_column: "observed"})
+        .copy()
+    )
 
 
 def _checkout_gt_fetch(
