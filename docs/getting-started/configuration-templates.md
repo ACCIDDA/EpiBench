@@ -11,7 +11,12 @@ hub_path: "" # either a path to a local hub repo, or a URL to a hub GitHub repo
 
 challenge_name: "whatever-you-want-to-call-this"
 
-targets: ["target-name"] # can fetch multiple targets; match(es) must be exact
+target: "target-name" # one target per create run; exact match when the source has a target column
+
+ground_truth_file: "target-data/time-series.parquet" # CSV or Parquet; relative to the hub root
+observed_column_name: "observation" # source observed-value column
+location_column_name: "location" # source location column
+date_column_name: "target_end_date" # source target-end-date column
 
 dates: {
     start_date: YYYY-MM-DD, # dates are inclusive on both ends [,]
@@ -23,10 +28,10 @@ dates: {
 # dates: [YYYY-MM-DD, YYYY-MM-DD, YYYY-MM-DD]
 # date provided must align with the cadence for the provided hub's submission schedule in a given season
 
-vintaging: TRUE # or FALSE
+vintaging: TRUE # or FALSE; FALSE uses the latest as_of revision through the final requested date
 vintaging_method: "checkout" # or "as_of"; not required when vintaging is set to FALSE
-# "as_of" pulls from a continuously updated ground truth file, matching an as_of to date of reference
-# "checkout" actually goes back to the date of reference in the git history
+# "as_of" requires an as_of column and selects the latest available revision at each cutoff
+# "checkout" reads this configured file after checking out the hub's historical git state
 vintaging_offset: -3 # if your hub has an offset between the date forecasts are created and the date they "begin"
 # many hubs have a -3 offset
 
@@ -62,4 +67,3 @@ include_models: ["Hub-model-X", "Hub-model-Y"]
 
 output_path: "/..." # path to where you want output to be saved
 ```
-

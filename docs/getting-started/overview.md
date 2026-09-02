@@ -17,7 +17,7 @@ When scoring model data for a library challenge, you may only submit one model's
 
 ## Building your own challenge
 
-- `epibench create --config-path`: A command that fetches and organizes ground truth data (of a specificed vintage) from a forecasting hub. In running this command with your specifications, you will have the vintaged (i.e., un-backfilled) ground truth data necessary to execute model runs from any date(s) of reference. The challenges you create with `epibench create` differ from the challenges in our library – our library challenges are static, and meant to represent specific forecasting requirements.
+- `epibench create --config-path`: A command that reads a user-configured ground truth file from a forecasting hub, applies the requested vintaging method, and writes standardized ground truth for model runs at the requested reference dates. The challenges you create with `epibench create` differ from our library challenges, which are static and represent fixed forecasting requirements.
 -  `epibench score --config-path` to score any model output
 - `epibench plot --score-file-path --ouptut-path` to visualize your scores. The baseline model for the corresponding hub will alwasy be included in scoring and plotting output.
 

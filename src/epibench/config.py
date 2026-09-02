@@ -54,10 +54,13 @@ class Config:
         Creates attributes for each key of the config:
         - .hub_path
         - .challenge_name
-        - .targets
+        - .target
         - .dates
         - .gt_cutoff_dates
-        - .hub_round_label
+        - .ground_truth_file
+        - .observed_column_name
+        - .location_column_name
+        - .date_column_name
         - .vintaging
         - .vintaging_method (None if not vintaging)
         - .vintaging_offset (None if not vintaging)
@@ -67,7 +70,11 @@ class Config:
         required_keys = {
         "hub_path", 
         "challenge_name",
-        "targets",
+        "target",
+        "ground_truth_file",
+        "observed_column_name",
+        "location_column_name",
+        "date_column_name",
         "dates", 
         "vintaging", 
         "output_path"
@@ -83,19 +90,34 @@ class Config:
         # ensure it is a str
         self.challenge_name = str(self.config["challenge_name"])
 
-        # `targets`-specific key check
-        # ensure list, ensure not empty
-        if isinstance(self.config["targets"], list):
-            if len(self.config["targets"]) == 0:
-                raise ValueError("`targets` key must be an unempty list.")
-            else:
-                targets = []
-                for target in self.config["targets"]:
-                    targets.append(target)
-        else:
-            raise ValueError(f"Please pass your `targets` key as a list of values. Received '{type(self.config['targets'])}'")
-        self.targets = sorted(self.config["targets"])
+        # `target`-specific key check
+        if not isinstance(self.config["target"], str):
+            raise ValueError(
+                f"`target` must be a string. Received: {type(self.config['target'])}"
+            )
+        if not self.config["target"]:
+            raise ValueError("`target` must be a non-empty string.")
+        self.target = self.config["target"]
         
+        # `ground_truth_file`-specific key check
+        ground_truth_file = Path(str(self.config["ground_truth_file"]))
+        if ground_truth_file.is_absolute() or ".." in ground_truth_file.parts:
+            raise ValueError(
+                "`ground_truth_file` must be a relative path contained within the hub repository."
+            )
+        if ground_truth_file.suffix.lower() not in {".csv", ".parquet"}:
+            raise ValueError("`ground_truth_file` must point to a .csv or .parquet file.")
+        self.ground_truth_file = str(ground_truth_file)
+
+        for key in (
+            "observed_column_name",
+            "location_column_name",
+            "date_column_name",
+        ):
+            value = self.config[key]
+            if not isinstance(value, str) or not value:
+                raise ValueError(f"`{key}` must be a non-empty string.")
+            setattr(self, key, value)
 
         # `dates` -specific key check 
         dates = self.config['dates'] 
@@ -197,20 +219,19 @@ class Config:
             self.vintaging_method = None
             self.vintaging_offset = 0 # no vintaging offset for non-vintaged runs (use the date itself)
 
-        self.dates, self.gt_cutoff_dates, self.hub_round_label = (
+        self.dates, self.gt_cutoff_dates = (
             validate_create_dates_against_hub_rounds(
                 hub_path=self.hub_path,
                 requested_dates=self.dates,
-                targets=self.targets,
                 gt_cutoff_offset=self.vintaging_offset,
             )
         )
-
 
         # `output_path`-specific key check 
         self.output_path = resolve_output_dir(
             self.config["output_path"], base_dir=self.base_dir
         )
+
     def validate_score_config(self): 
         """
         A method to validate a config for the `score` pipeline.
