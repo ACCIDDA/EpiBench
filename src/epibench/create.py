@@ -25,6 +25,9 @@ def create(config_path=None):
     # .challenge_name(str)
     # .targets (list)
     # .dates (list of dates as strs)
+    # .gt_cutoff_dates (list of dates as strs)
+    # .ground_truth_file (str)
+    # .observed_column_name (str)
     # .vintaging (bool)
     # .vintaging_method (str | None)
     # .vintaging_offset (int)
@@ -36,6 +39,8 @@ def create(config_path=None):
         hub_path=config_object.hub_path,
         targets=config_object.targets,
         reference_dates=config_object.dates,
+        gt_file=config_object.ground_truth_file,
+        observed_column=config_object.observed_column_name,
         data_cutoff_dates=config_object.gt_cutoff_dates,
         vintaging=config_object.vintaging,
         vintaging_method=config_object.vintaging_method
@@ -76,6 +81,8 @@ def create(config_path=None):
     task_list = pd.DataFrame(list(date_to_abs_gt_paths.items()), columns=["date", "path_to_gt"])
     task_list_output_path = output_base / "task_list.csv"
     task_list.to_csv(task_list_output_path, index=False)
+
+
 def _build_challenge_id(config_object: Config) -> str:
     """
     Construct a challenge_id by using user defined challenge name

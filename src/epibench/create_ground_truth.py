@@ -1,42 +1,28 @@
-"""
-Functions associated with:
-    - retrieving vintaged gt data via `git checkout` (_checkout_gt_fetch() exposed via gt_from_hub())
-    - retrieving vintaged gt data via timeseries.csv "as_of" col (_asof_gt_fetch() exposed via gt_from_hub())
-    - retrieving non-vintaged gt data via timeseries.csv "as_of" col (_asof_gt_fetch() exposed via gt_from_hub())
+"""Retrieve and standardize ground truth for the ``epibench create`` pipeline."""
 
-Ground truth data retrieved via `git checkout` and via the "as_of" column comes
-from timeseries.csv/.parquet.
-"""
+import importlib
+import logging
+from contextlib import contextmanager
+from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 import pygit2
-import logging
-import importlib
-from pathlib import Path
-from datetime import datetime
-from contextlib import contextmanager
-from hubdata import connect_target_data
-from hubdata.create_target_data_schema import TargetType 
+
 
 logger = logging.getLogger(__name__)
 hub_target_data_schema_module = importlib.import_module("hubdata.create_target_data_schema")
 
-REQ_COLUMNS = {
-    "target_end_date",
-    "as_of",
-    "location",
-    "target",
-    "observation",
-}
+BASE_COLUMNS = ["target_end_date", "location", "target"]
+VINTAGE_KEY_COLUMNS = ["target_end_date", "location", "target"]
+AS_OF_COLUMN = "as_of"
 
 
 @contextmanager
 def _suppress_missing_target_data_schema_warning(enabled: bool):
-    """
-    Forcefully uppress hubdata's missing target-data.json fallback warning.
+    """Suppress hubdata's missing target-data.json fallback warning.
 
-    This warning appears when target-data.json is not found and data
-    types have to be inferred for the data. We enforce data types later.
+    This compatibility helper is also used by the scoring pipeline.
     """
     if not enabled:
         yield
@@ -56,17 +42,98 @@ def _suppress_missing_target_data_schema_warning(enabled: bool):
         hub_target_data_schema_module.logger.warn = original_warn
 
 
-def _checkout_gt_fetch(hub_path: Path, targets: list, date: str, main_branch="main") -> pd.DataFrame: 
-    """
-    Fetch gt data at a specific date.
+def _ground_truth_path(hub_path: Path, gt_file: str) -> Path:
+    """Resolve a user-configured ground truth path within the hub repository."""
+    relative_path = Path(gt_file)
+    if relative_path.is_absolute():
+        raise ValueError("`ground_truth_file` must be a path relative to the hub repository root.")
 
-    This function is for vintaging=True runs, where it is important
-    to fetch the gt data that was available at the given date. It does this
-    by checking out `main` of the repo at a specified hub_path, reading the
-    time-series gt file from that checkout, restoring the repo, and returning
-    the file.
-    """ 
-    # convert str date to datetime date; set to EOD to capture any commits that happened that day
+    resolved_hub_path = hub_path.resolve()
+    resolved_gt_path = (resolved_hub_path / relative_path).resolve()
+    try:
+        resolved_gt_path.relative_to(resolved_hub_path)
+    except ValueError as error:
+        raise ValueError("`ground_truth_file` must not resolve outside the hub repository.") from error
+
+    return resolved_gt_path
+
+
+def _read_ground_truth_file(hub_path: Path, gt_file: str) -> pd.DataFrame:
+    """Read the configured CSV or Parquet ground truth file from a hub checkout."""
+    ground_truth_path = _ground_truth_path(hub_path, gt_file)
+    if not ground_truth_path.is_file():
+        raise FileNotFoundError(
+            f"Could not find configured ground truth file {gt_file!r} in hub repository {hub_path}."
+        )
+
+    if ground_truth_path.suffix.lower() == ".parquet":
+        return pd.read_parquet(ground_truth_path)
+    if ground_truth_path.suffix.lower() == ".csv":
+        return pd.read_csv(ground_truth_path, low_memory=False)
+
+    raise ValueError("`ground_truth_file` must point to a .csv or .parquet file.")
+
+
+def _validate_columns(df: pd.DataFrame, required_columns: list[str]) -> None:
+    """Require all columns needed to construct the create-pipeline output."""
+    missing_columns = set(required_columns).difference(df.columns)
+    if missing_columns:
+        raise ValueError(
+            "Ground truth data is missing required column(s): "
+            f"{', '.join(sorted(missing_columns))}."
+        )
+
+
+def _filter_targets(df: pd.DataFrame, targets: list[str]) -> pd.DataFrame:
+    """Keep only requested targets, failing when none are available."""
+    filtered_df = df[df["target"].isin(targets)].copy()
+    if filtered_df.empty:
+        raise ValueError(f"Could not find target(s) {targets} in ground truth data.")
+    return filtered_df
+
+
+def _select_as_of_vintage(df: pd.DataFrame, vintage_date: str) -> pd.DataFrame:
+    """Keep each target/date/location's newest revision available on ``vintage_date``."""
+    as_of_values = pd.to_datetime(df[AS_OF_COLUMN], errors="coerce")
+    if as_of_values.isna().any():
+        raise ValueError("Ground truth data contains missing or invalid `as_of` values.")
+
+    cutoff_timestamp = pd.Timestamp(vintage_date)
+    available_df = df.assign(_as_of_sort_value=as_of_values)
+    available_df = available_df[available_df["_as_of_sort_value"] <= cutoff_timestamp]
+    if available_df.empty:
+        raise ValueError(
+            f"Ground truth data does not contain an `as_of` vintage on or before {vintage_date}."
+        )
+
+    # Stable sorting makes an exact as_of tie resolve to the later source-file row.
+    return (
+        available_df.sort_values(by="_as_of_sort_value", kind="stable")
+        .drop_duplicates(subset=VINTAGE_KEY_COLUMNS, keep="last")
+        .drop(columns="_as_of_sort_value")
+    )
+
+
+def _filter_to_cutoff_target_end_date(df: pd.DataFrame, cutoff_date: str) -> pd.DataFrame:
+    """Keep observations whose target end date is no later than the requested cutoff."""
+    target_end_dates = pd.to_datetime(df["target_end_date"], errors="coerce")
+    return df.loc[target_end_dates <= pd.Timestamp(cutoff_date)].copy()
+
+
+def _keep_output_columns(df: pd.DataFrame, keep_columns: list[str]) -> pd.DataFrame:
+    """Return only the columns required by downstream create-pipeline consumers."""
+    return df.loc[:, keep_columns].copy()
+
+
+def _checkout_gt_fetch(
+    hub_path: Path,
+    gt_file: str,
+    targets: list[str],
+    keep_columns: list[str],
+    date: str,
+    main_branch: str = "main",
+) -> pd.DataFrame:
+    """Fetch configured ground truth from the repository state at ``date``."""
     date_obj = datetime.strptime(date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
     repo = pygit2.Repository(hub_path)
 
@@ -76,184 +143,111 @@ def _checkout_gt_fetch(hub_path: Path, targets: list, date: str, main_branch="ma
         if commit.commit_time <= date_obj.timestamp():
             closest_commit = commit
             break
-        if commit.parents:
-            commit = commit.parents[0]
-        else:
+        if not commit.parents:
             break
+        commit = commit.parents[0]
 
-    if closest_commit:
-        repo.checkout_tree(closest_commit.tree, strategy=pygit2.GIT_CHECKOUT_FORCE)
-        repo.set_head(closest_commit.id)
-        logger.info(
-            f"Checked out commit on {date} (SHA: {closest_commit.id}, {commit.commit_time}) for repo {hub_path}"
-        )
-    else:
+    if closest_commit is None:
         raise ValueError(f"No commit found for date {date} in repo {hub_path} history")
-    
+
+    repo.checkout_tree(closest_commit.tree, strategy=pygit2.GIT_CHECKOUT_FORCE)
+    repo.set_head(closest_commit.id)
+    logger.info(
+        "Checked out commit on %s (SHA: %s, %s) for repo %s",
+        date,
+        closest_commit.id,
+        closest_commit.commit_time,
+        hub_path,
+    )
+
     try:
-        target_dir = hub_path / "target-data"
-        parquet_file = target_dir / "time-series.parquet"
-        csv_file = target_dir / "time-series.csv"
-        if parquet_file.exists():
-            df = pd.read_parquet(parquet_file) 
-        elif csv_file.exists():
-            df = pd.read_csv(csv_file, low_memory=False) 
-        else:
-            raise FileNotFoundError(f"Could not find ground truth file (time-series .csv or .parquet) in {target_dir}.")
+        gt = _read_ground_truth_file(hub_path, gt_file)
+        _validate_columns(gt, keep_columns)
+        gt = _filter_targets(gt, targets)
 
-        missing_columns = REQ_COLUMNS.difference(df.columns)
-        if missing_columns:
+        if AS_OF_COLUMN in gt.columns:
+            gt = _select_as_of_vintage(gt, date)
+        elif gt.duplicated(subset=VINTAGE_KEY_COLUMNS).any():
             raise ValueError(
-                "Ground truth time-series data is missing required column(s): "
-                f"{', '.join(sorted(missing_columns))}."
+                "Ground truth data contains duplicate target_end_date, location, and target "
+                "combinations but has no `as_of` column to select a vintage."
             )
 
-        df = df[df['target'].isin(targets)]
-        if df.empty:
-            raise ValueError(f"Could not find targets {targets} in ground truth data")
-
-        # TODO, perhaps not make this fatal? not sure if the next block will fail if it encounters an NA 
-        as_of_sort_values = pd.to_datetime(df["as_of"], errors="coerce")
-        if as_of_sort_values.isna().any():
-            raise ValueError("Ground truth time-series data contains missing or invalid `as_of` values.")
-
-        # Keep the newest revision for records repeated across time-series vintages.
-        df = (
-            df.assign(_as_of_sort_value=as_of_sort_values)
-            .sort_values(by="_as_of_sort_value", kind="stable")
-            .drop_duplicates(
-                subset=["target_end_date", "location", "target", "observation"],
-                keep="last",
-            )
-            .drop(columns="_as_of_sort_value")
-        )
-        return df
-    finally: # reset the repo to the head so that we can use it again
-        branch_ref = "refs/heads/" + main_branch
-        repo.checkout(branch_ref, strategy=pygit2.GIT_CHECKOUT_FORCE)
-
+        return _keep_output_columns(gt, keep_columns)
+    finally:
+        repo.checkout(f"refs/heads/{main_branch}", strategy=pygit2.GIT_CHECKOUT_FORCE)
 
 
 def _asof_gt_fetch(
-        hub_path: Path, 
-        targets: list, 
-        date_s: list | str
-    ) -> tuple[pd.DataFrame | bool, str]:
-    """
-    Fetch and filter gt data from a hub using the 'as_of'
-    column of a timeseries.csv gt data file.
+    hub_path: Path,
+    gt_file: str,
+    targets: list[str],
+    keep_columns: list[str],
+    date_s: list[str] | str,
+) -> tuple[pd.DataFrame, str]:
+    """Fetch configured ground truth and select the newest as-of revision per key."""
+    cutoff_date = max(date_s) if isinstance(date_s, list) else date_s
+    gt = _read_ground_truth_file(hub_path, gt_file)
+    _validate_columns(gt, [*keep_columns, AS_OF_COLUMN])
+    gt = _filter_targets(gt, targets)
+    gt = _select_as_of_vintage(gt, cutoff_date)
+    gt = _filter_to_cutoff_target_end_date(gt, cutoff_date)
 
-    This function is for vintaging=False runs, where users don't care
-    to have gt data vintaged for each date, or for vintaging=True with
-    vintaging_method="as_of" runs where users want vintaged data according
-    to the as_of column.
-
-    Args:
-        hub_path: Path to a local clone of a hub/hub repo.
-        targets: List of targets to get gt data for.
-        date_s: List of dates or single date (to match with as_of col).
-
-    Returns:
-        Tuple with pd.DataFrame of gt data and a date that describes the gt 
-        data (either the latest date included or the only date fetched).
-    """
-    suppress_hubdata_warning = not (hub_path / "hub-config" / "target-data.json").is_file()
-
-    # multiple dates (fetch to cover a range). use case: non-vintaged gt fetch
-    if isinstance(date_s, list): 
-        # find max date, convert to date obj 
-        latest_date_str = max(date_s)
-        latest_date_obj = datetime.strptime(latest_date_str, "%Y-%m-%d").date()
-        # get the gt from the hub (accessing timeseries gt data)
-        with _suppress_missing_target_data_schema_warning(enabled=suppress_hubdata_warning):
-            gt = connect_target_data(hub_path=hub_path, target_type=TargetType.TIME_SERIES).to_table().to_pandas()
-        # keep only the target(s) we want; throw error if there are no target matches
-        gt = gt[gt['target'].isin(targets)]
-        if gt.empty:
-            raise ValueError(f"Could not find target(s) {targets} in ground truth data.")
-        # only keep most recent as_of values (best available data for every loc, target_end_date)
-        gt = gt.sort_values(by='as_of', ascending=True)
-        gt = gt.drop_duplicates(
-            subset=["target_end_date", "location", "target"],
-            keep="last"
+    if gt.empty:
+        raise ValueError(
+            f"Ground truth data does not contain requested targets through {cutoff_date}."
         )
-        # cut off gt data at the latest date in `dates` param (inclusive)
-        gt = gt[gt['target_end_date'] <= latest_date_obj]
-        if gt.empty:
-            raise ValueError(f"Ground truth data does not contain any data for dates {date_s} and target {targets}.")
 
-        return gt, latest_date_str
-    
-    # singe date fetch. use case: vintaged gt fetch w/ vintaging_method: "as_of"
-    elif isinstance(date_s, str): 
-        date_s_obj = datetime.strptime(date_s, "%Y-%m-%d").date()
-        with _suppress_missing_target_data_schema_warning(enabled=suppress_hubdata_warning):
-            gt = connect_target_data(hub_path=hub_path, target_type=TargetType.TIME_SERIES).to_table().to_pandas()
-        # only keep target(s) we want; throw WARNING and proceed to next date if there are none
-        gt = gt[gt['target'].isin(targets)]
-        if gt.empty:
-            logger.warning(
-                f"Could not find target(s) {targets} in ground truth data for date {date_s}. "
-                "Proceeding to next date."
-            )
-            return False, date_s # returning no gt data, proceeding
-        # only keep things vintaged to the date we specified
-        # flexible matching to as_of (closest without going over)
-        valid_vintages = gt[gt['as_of'] <= date_s_obj]
-        if valid_vintages.empty:
-            raise ValueError(
-                f"Could find no ground truth data on or before {date_s} included in your span of dates. "
-                "Please ensure your dates do not extend outside of hub existence or into the future."
-            )
-        closest_date = valid_vintages['as_of'].max()
-        gt = valid_vintages[valid_vintages['as_of'] == closest_date]
-        # filter the target_end_dates as well
-        gt = gt[gt['target_end_date'] <= date_s_obj]
-        # if gt.empty:
-            # possible check to have, but this should never trigger because 
-            # target_end_date should remain in pseudo synchronicity w/ as_of
-        return gt, date_s
+    return _keep_output_columns(gt, keep_columns), cutoff_date
+
 
 def gt_from_hub(
-        hub_path: Path, 
-        targets: list, 
-        reference_dates: list,
-        data_cutoff_dates: list,
-        vintaging: bool,
-        vintaging_method: str | None
-    ) -> dict:
-    """
-    Executes hub cloning/updating, ground truth data fetching 
-    with or without vintaging, and return of that data.
-    """
-    # establish return dict
-    gt_dict = {}
+    hub_path: Path,
+    targets: list[str],
+    reference_dates: list[str],
+    gt_file: str,
+    observed_column: str,
+    data_cutoff_dates: list[str],
+    vintaging: bool,
+    vintaging_method: str | None,
+) -> dict[str, pd.DataFrame]:
+    """Fetch configured ground truth with the requested vintaging strategy."""
+    keep_columns = [*BASE_COLUMNS, observed_column]
 
     if len(reference_dates) != len(data_cutoff_dates):
-        raise ValueError(
-            "`reference_dates` and `data_cutoff_dates` must have the same length."
-        )
+        raise ValueError("`reference_dates` and `data_cutoff_dates` must have the same length.")
 
-    # if using vintaging, fetch iteratively
+    gt_dict = {}
     if vintaging:
         for reference_date, cutoff_date in zip(reference_dates, data_cutoff_dates):
-            if vintaging_method == 'checkout':
+            if vintaging_method == "checkout":
                 gt_dict[str(reference_date)] = _checkout_gt_fetch(
                     hub_path=hub_path,
+                    gt_file=gt_file,
                     targets=targets,
+                    keep_columns=keep_columns,
                     date=cutoff_date,
                 )
-            elif vintaging_method == 'as_of':
-                gt, _ = _asof_gt_fetch(hub_path=hub_path, targets=targets, date_s=cutoff_date)
-                gt_dict[str(reference_date)] = gt 
-
-    # if not using vintaging, fetch for latest date
+            elif vintaging_method == "as_of":
+                gt, _ = _asof_gt_fetch(
+                    hub_path=hub_path,
+                    gt_file=gt_file,
+                    targets=targets,
+                    keep_columns=keep_columns,
+                    date_s=cutoff_date,
+                )
+                gt_dict[str(reference_date)] = gt
+            else:
+                raise ValueError(f"Unsupported `vintaging_method`: {vintaging_method!r}.")
     else:
-        gt, _ = _asof_gt_fetch(hub_path=hub_path, targets=targets, date_s=data_cutoff_dates) 
-        gt_dict[reference_dates[-1]] = gt 
-    
-    # return gt data dict (keyed by date)
+        gt, _ = _asof_gt_fetch(
+            hub_path=hub_path,
+            gt_file=gt_file,
+            targets=targets,
+            keep_columns=keep_columns,
+            date_s=data_cutoff_dates,
+        )
+        gt_dict[str(reference_dates[-1])] = gt
+
     logger.info("Success ✅")
     return gt_dict
-
-    

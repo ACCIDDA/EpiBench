@@ -57,7 +57,8 @@ class Config:
         - .targets
         - .dates
         - .gt_cutoff_dates
-        - .hub_round_label
+        - .ground_truth_file
+        - .observed_column_name
         - .vintaging
         - .vintaging_method (None if not vintaging)
         - .vintaging_offset (None if not vintaging)
@@ -68,6 +69,8 @@ class Config:
         "hub_path", 
         "challenge_name",
         "targets",
+        "ground_truth_file",
+        "observed_column_name",
         "dates", 
         "vintaging", 
         "output_path"
@@ -96,6 +99,20 @@ class Config:
             raise ValueError(f"Please pass your `targets` key as a list of values. Received '{type(self.config['targets'])}'")
         self.targets = sorted(self.config["targets"])
         
+        # `ground_truth_file`-specific key check
+        ground_truth_file = Path(str(self.config["ground_truth_file"]))
+        if ground_truth_file.is_absolute() or ".." in ground_truth_file.parts:
+            raise ValueError(
+                "`ground_truth_file` must be a relative path contained within the hub repository."
+            )
+        if ground_truth_file.suffix.lower() not in {".csv", ".parquet"}:
+            raise ValueError("`ground_truth_file` must point to a .csv or .parquet file.")
+        self.ground_truth_file = str(ground_truth_file)
+
+        # `observed_column_name`-specific key check
+        self.observed_column_name = str(self.config["observed_column_name"])
+        if not self.observed_column_name:
+            raise ValueError("`observed_column_name` must be a non-empty string.")
 
         # `dates` -specific key check 
         dates = self.config['dates'] 
@@ -206,11 +223,11 @@ class Config:
             )
         )
 
-
         # `output_path`-specific key check 
         self.output_path = resolve_output_dir(
             self.config["output_path"], base_dir=self.base_dir
         )
+
     def validate_score_config(self): 
         """
         A method to validate a config for the `score` pipeline.
