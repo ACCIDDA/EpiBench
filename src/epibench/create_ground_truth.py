@@ -13,8 +13,7 @@ import pygit2
 logger = logging.getLogger(__name__)
 hub_target_data_schema_module = importlib.import_module("hubdata.create_target_data_schema")
 
-BASE_COLUMNS = ["target_end_date", "location", "target"]
-VINTAGE_KEY_COLUMNS = ["target_end_date", "location", "target"]
+BASE_COLUMNS = ["target_end_date", "location"]
 AS_OF_COLUMN = "as_of"
 
 
@@ -84,12 +83,20 @@ def _validate_columns(df: pd.DataFrame, required_columns: list[str]) -> None:
         )
 
 
-def _filter_targets(df: pd.DataFrame, targets: list[str]) -> pd.DataFrame:
-    """Keep only requested targets, failing when none are available."""
+def _filter_targets_if_present(df: pd.DataFrame, targets: list[str]) -> tuple[pd.DataFrame, bool]:
+    """Filter requested targets when the source data supplies a target column."""
+    if "target" not in df.columns:
+        return df, False
+
     filtered_df = df[df["target"].isin(targets)].copy()
     if filtered_df.empty:
         raise ValueError(f"Could not find target(s) {targets} in ground truth data.")
-    return filtered_df
+    return filtered_df, True
+
+
+def _vintage_key_columns(df: pd.DataFrame) -> list[str]:
+    """Return the available dimensions that identify one ground truth observation."""
+    return [*BASE_COLUMNS, *(["target"] if "target" in df.columns else [])]
 
 
 def _select_as_of_vintage(df: pd.DataFrame, vintage_date: str) -> pd.DataFrame:
@@ -109,7 +116,7 @@ def _select_as_of_vintage(df: pd.DataFrame, vintage_date: str) -> pd.DataFrame:
     # Stable sorting makes an exact as_of tie resolve to the later source-file row.
     return (
         available_df.sort_values(by="_as_of_sort_value", kind="stable")
-        .drop_duplicates(subset=VINTAGE_KEY_COLUMNS, keep="last")
+        .drop_duplicates(subset=_vintage_key_columns(available_df), keep="last")
         .drop(columns="_as_of_sort_value")
     )
 
@@ -132,7 +139,7 @@ def _checkout_gt_fetch(
     keep_columns: list[str],
     date: str,
     main_branch: str = "main",
-) -> pd.DataFrame:
+) -> tuple[pd.DataFrame, bool]:
     """Fetch configured ground truth from the repository state at ``date``."""
     date_obj = datetime.strptime(date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
     repo = pygit2.Repository(hub_path)
@@ -163,17 +170,17 @@ def _checkout_gt_fetch(
     try:
         gt = _read_ground_truth_file(hub_path, gt_file)
         _validate_columns(gt, keep_columns)
-        gt = _filter_targets(gt, targets)
+        gt, target_column_found = _filter_targets_if_present(gt, targets)
 
         if AS_OF_COLUMN in gt.columns:
             gt = _select_as_of_vintage(gt, date)
-        elif gt.duplicated(subset=VINTAGE_KEY_COLUMNS).any():
+        elif gt.duplicated(subset=_vintage_key_columns(gt)).any():
             raise ValueError(
-                "Ground truth data contains duplicate target_end_date, location, and target "
-                "combinations but has no `as_of` column to select a vintage."
+                "Ground truth data contains duplicate target_end_date/location combinations "
+                "but has no `as_of` column to select a vintage."
             )
 
-        return _keep_output_columns(gt, keep_columns)
+        return _keep_output_columns(gt, keep_columns), target_column_found
     finally:
         repo.checkout(f"refs/heads/{main_branch}", strategy=pygit2.GIT_CHECKOUT_FORCE)
 
@@ -184,12 +191,12 @@ def _asof_gt_fetch(
     targets: list[str],
     keep_columns: list[str],
     date_s: list[str] | str,
-) -> tuple[pd.DataFrame, str]:
+) -> tuple[pd.DataFrame, str, bool]:
     """Fetch configured ground truth and select the newest as-of revision per key."""
     cutoff_date = max(date_s) if isinstance(date_s, list) else date_s
     gt = _read_ground_truth_file(hub_path, gt_file)
     _validate_columns(gt, [*keep_columns, AS_OF_COLUMN])
-    gt = _filter_targets(gt, targets)
+    gt, target_column_found = _filter_targets_if_present(gt, targets)
     gt = _select_as_of_vintage(gt, cutoff_date)
     gt = _filter_to_cutoff_target_end_date(gt, cutoff_date)
 
@@ -198,7 +205,7 @@ def _asof_gt_fetch(
             f"Ground truth data does not contain requested targets through {cutoff_date}."
         )
 
-    return _keep_output_columns(gt, keep_columns), cutoff_date
+    return _keep_output_columns(gt, keep_columns), cutoff_date, target_column_found
 
 
 def gt_from_hub(
@@ -218,18 +225,20 @@ def gt_from_hub(
         raise ValueError("`reference_dates` and `data_cutoff_dates` must have the same length.")
 
     gt_dict = {}
+    target_column_presence = []
     if vintaging:
         for reference_date, cutoff_date in zip(reference_dates, data_cutoff_dates):
             if vintaging_method == "checkout":
-                gt_dict[str(reference_date)] = _checkout_gt_fetch(
+                gt, target_column_found = _checkout_gt_fetch(
                     hub_path=hub_path,
                     gt_file=gt_file,
                     targets=targets,
                     keep_columns=keep_columns,
                     date=cutoff_date,
                 )
+                gt_dict[str(reference_date)] = gt
             elif vintaging_method == "as_of":
-                gt, _ = _asof_gt_fetch(
+                gt, _, target_column_found = _asof_gt_fetch(
                     hub_path=hub_path,
                     gt_file=gt_file,
                     targets=targets,
@@ -239,8 +248,9 @@ def gt_from_hub(
                 gt_dict[str(reference_date)] = gt
             else:
                 raise ValueError(f"Unsupported `vintaging_method`: {vintaging_method!r}.")
+            target_column_presence.append(target_column_found)
     else:
-        gt, _ = _asof_gt_fetch(
+        gt, _, target_column_found = _asof_gt_fetch(
             hub_path=hub_path,
             gt_file=gt_file,
             targets=targets,
@@ -248,6 +258,19 @@ def gt_from_hub(
             date_s=data_cutoff_dates,
         )
         gt_dict[str(reference_dates[-1])] = gt
+        target_column_presence.append(target_column_found)
+
+    if len(set(target_column_presence)) > 1:
+        raise ValueError(
+            "Configured ground truth files inconsistently contain a `target` column across "
+            "the requested vintages. Ground truth file must have consistent columns across all dates."
+        )
+    if target_column_presence and not target_column_presence[0]:
+        logger.warning(
+            "Unable to verify configured target(s) %s because the ground truth data does not "
+            "contain a `target` column.",
+            targets,
+        )
 
     logger.info("Success ✅")
     return gt_dict
