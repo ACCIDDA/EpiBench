@@ -23,7 +23,7 @@ def create(config_path=None):
     # can reference config info with:
     # .hub_path (Path)
     # .challenge_name(str)
-    # .targets (list)
+    # .target (str)
     # .dates (list of dates as strs)
     # .gt_cutoff_dates (list of dates as strs)
     # .ground_truth_file (str)
@@ -37,7 +37,7 @@ def create(config_path=None):
     logger.info("Fetching gt data from hub...")
     gt_data = gt_from_hub(
         hub_path=config_object.hub_path,
-        targets=config_object.targets,
+        target=config_object.target,
         reference_dates=config_object.dates,
         gt_file=config_object.ground_truth_file,
         observed_column=config_object.observed_column_name,
@@ -64,7 +64,7 @@ def create(config_path=None):
     date_to_abs_gt_paths = {}
     for date, gt_df in gt_data.items():
         if gt_df is False: # Give warning if there wasn't a df returned
-            logger.warning(f"NOTICE: No ground truth data found for specified targets ({config_object.targets}) for date {date}.")
+            logger.warning(f"NOTICE: No ground truth data found for target {config_object.target!r} for date {date}.")
             continue 
         else:
             file_name = f"{date.replace('-', '')}_gt.csv"
@@ -88,7 +88,7 @@ def _build_challenge_id(config_object: Config) -> str:
     Construct a challenge_id by using user defined challenge name
     and the hash generated from:
       - hub official name
-      - targets
+      - target
       - dates
       - vintaging
       - vintaging_method
@@ -125,7 +125,7 @@ def _build_challenge_id(config_object: Config) -> str:
     # Build a deterministic object to hash
     hash_input = {
         "hub_name": hub_name,
-        "targets": config_object.targets,
+        "target": config_object.target,
         "dates": config_object.dates,
         "vintaging": config_object.vintaging,
         "vintaging_method": config_object.vintaging_method,

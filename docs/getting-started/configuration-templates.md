@@ -11,7 +11,7 @@ hub_path: "" # either a path to a local hub repo, or a URL to a hub GitHub repo
 
 challenge_name: "whatever-you-want-to-call-this"
 
-targets: ["target-name"] # can fetch multiple targets; match(es) must be exact
+target: "target-name" # one target per create run; match must be exact
 
 dates: {
     start_date: YYYY-MM-DD, # dates are inclusive on both ends [,]
@@ -62,4 +62,3 @@ include_models: ["Hub-model-X", "Hub-model-Y"]
 
 output_path: "/..." # path to where you want output to be saved
 ```
-

@@ -83,14 +83,14 @@ def _validate_columns(df: pd.DataFrame, required_columns: list[str]) -> None:
         )
 
 
-def _filter_targets_if_present(df: pd.DataFrame, targets: list[str]) -> tuple[pd.DataFrame, bool]:
-    """Filter requested targets when the source data supplies a target column."""
+def _filter_target_if_present(df: pd.DataFrame, target: str) -> tuple[pd.DataFrame, bool]:
+    """Filter the requested target when the source data supplies a target column."""
     if "target" not in df.columns:
         return df, False
 
-    filtered_df = df[df["target"].isin(targets)].copy()
+    filtered_df = df[df["target"] == target].copy()
     if filtered_df.empty:
-        raise ValueError(f"Could not find target(s) {targets} in ground truth data.")
+        raise ValueError(f"Could not find target {target!r} in ground truth data.")
     return filtered_df, True
 
 
@@ -140,7 +140,7 @@ def _keep_output_columns(df: pd.DataFrame, keep_columns: list[str]) -> pd.DataFr
 def _checkout_gt_fetch(
     hub_path: Path,
     gt_file: str,
-    targets: list[str],
+    target: str,
     keep_columns: list[str],
     date: str,
     main_branch: str = "main",
@@ -175,7 +175,7 @@ def _checkout_gt_fetch(
     try:
         gt = _read_ground_truth_file(hub_path, gt_file)
         _validate_columns(gt, keep_columns)
-        gt, target_column_found = _filter_targets_if_present(gt, targets)
+        gt, target_column_found = _filter_target_if_present(gt, target)
 
         if AS_OF_COLUMN in gt.columns:
             gt = _select_as_of_vintage(gt, date)
@@ -193,7 +193,7 @@ def _checkout_gt_fetch(
 def _asof_gt_fetch(
     hub_path: Path,
     gt_file: str,
-    targets: list[str],
+    target: str,
     keep_columns: list[str],
     date_s: list[str] | str,
 ) -> tuple[pd.DataFrame, str, bool]:
@@ -201,13 +201,13 @@ def _asof_gt_fetch(
     cutoff_date = max(date_s) if isinstance(date_s, list) else date_s
     gt = _read_ground_truth_file(hub_path, gt_file)
     _validate_columns(gt, [*keep_columns, AS_OF_COLUMN])
-    gt, target_column_found = _filter_targets_if_present(gt, targets)
+    gt, target_column_found = _filter_target_if_present(gt, target)
     gt = _select_as_of_vintage(gt, cutoff_date)
     gt = _filter_to_cutoff_target_end_date(gt, cutoff_date)
 
     if gt.empty:
         raise ValueError(
-            f"Ground truth data does not contain requested targets through {cutoff_date}."
+            f"Ground truth data does not contain target {target!r} through {cutoff_date}."
         )
 
     return _keep_output_columns(gt, keep_columns), cutoff_date, target_column_found
@@ -215,7 +215,7 @@ def _asof_gt_fetch(
 
 def gt_from_hub(
     hub_path: Path,
-    targets: list[str],
+    target: str,
     reference_dates: list[str],
     gt_file: str,
     observed_column: str,
@@ -237,7 +237,7 @@ def gt_from_hub(
                 gt, target_column_found = _checkout_gt_fetch(
                     hub_path=hub_path,
                     gt_file=gt_file,
-                    targets=targets,
+                    target=target,
                     keep_columns=keep_columns,
                     date=cutoff_date,
                 )
@@ -246,7 +246,7 @@ def gt_from_hub(
                 gt, _, target_column_found = _asof_gt_fetch(
                     hub_path=hub_path,
                     gt_file=gt_file,
-                    targets=targets,
+                    target=target,
                     keep_columns=keep_columns,
                     date_s=cutoff_date,
                 )
@@ -258,7 +258,7 @@ def gt_from_hub(
         gt, _, target_column_found = _asof_gt_fetch(
             hub_path=hub_path,
             gt_file=gt_file,
-            targets=targets,
+            target=target,
             keep_columns=keep_columns,
             date_s=data_cutoff_dates,
         )
@@ -272,9 +272,9 @@ def gt_from_hub(
         )
     if target_column_presence and not target_column_presence[0]:
         logger.warning(
-            "Unable to verify configured target(s) %s because the ground truth data does not "
+            "Unable to verify configured target %r because the ground truth data does not "
             "contain a `target` column.",
-            targets,
+            target,
         )
 
     logger.info("Success ✅")

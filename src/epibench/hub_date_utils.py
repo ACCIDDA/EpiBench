@@ -165,7 +165,6 @@ def _warn_on_vintaging_offset_mismatch(hub_path: Path, vintaging_cutoff: int) ->
 def validate_create_dates_against_hub_rounds(
     hub_path: Path,
     requested_dates: list[str],
-    targets: list[str],
     gt_cutoff_offset: int,
 ) -> tuple[list[str], list[str]]:
     """
@@ -180,7 +179,6 @@ def validate_create_dates_against_hub_rounds(
     - validated create dates
     - gt cutoff dates derived from each create date plus ``gt_cutoff_offset``
     """
-    del targets  # date validation now relies only on bundled hub season metadata
     _warn_on_vintaging_offset_mismatch(
         hub_path=hub_path,
         vintaging_cutoff=gt_cutoff_offset,

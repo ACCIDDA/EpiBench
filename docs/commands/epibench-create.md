@@ -8,7 +8,7 @@ The configuration file for an `epibench create` run takes in up to eight keys:
 
 * `hub_path`: a path to a local hub repo clone, or to a hub GitHub repo URL 
 * `challenge_name`: whatever name you would like to give the "challenge" you are defining
-* `targets`: passed as a list, whichever target(s) you would like to fetch ground truth data for
+* `target`: the single target whose ground truth you would like to fetch; it must exactly match the source data when that data contains a `target` column
 * `dates`: which dates of reference you want to fetch ground truth data for (`YYYY-MM-DD`)
     * this can be passes as a list of individually-specified dates, 
     * or as a dictionary with three keys: `start_date`, `end_date`, `freq`

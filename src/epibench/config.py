@@ -54,7 +54,7 @@ class Config:
         Creates attributes for each key of the config:
         - .hub_path
         - .challenge_name
-        - .targets
+        - .target
         - .dates
         - .gt_cutoff_dates
         - .ground_truth_file
@@ -68,7 +68,7 @@ class Config:
         required_keys = {
         "hub_path", 
         "challenge_name",
-        "targets",
+        "target",
         "ground_truth_file",
         "observed_column_name",
         "dates", 
@@ -86,18 +86,14 @@ class Config:
         # ensure it is a str
         self.challenge_name = str(self.config["challenge_name"])
 
-        # `targets`-specific key check
-        # ensure list, ensure not empty
-        if isinstance(self.config["targets"], list):
-            if len(self.config["targets"]) == 0:
-                raise ValueError("`targets` key must be an unempty list.")
-            else:
-                targets = []
-                for target in self.config["targets"]:
-                    targets.append(target)
-        else:
-            raise ValueError(f"Please pass your `targets` key as a list of values. Received '{type(self.config['targets'])}'")
-        self.targets = sorted(self.config["targets"])
+        # `target`-specific key check
+        if not isinstance(self.config["target"], str):
+            raise ValueError(
+                f"`target` must be a string. Received: {type(self.config['target'])}"
+            )
+        if not self.config["target"]:
+            raise ValueError("`target` must be a non-empty string.")
+        self.target = self.config["target"]
         
         # `ground_truth_file`-specific key check
         ground_truth_file = Path(str(self.config["ground_truth_file"]))
@@ -218,7 +214,6 @@ class Config:
             validate_create_dates_against_hub_rounds(
                 hub_path=self.hub_path,
                 requested_dates=self.dates,
-                targets=self.targets,
                 gt_cutoff_offset=self.vintaging_offset,
             )
         )
