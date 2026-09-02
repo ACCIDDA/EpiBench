@@ -167,7 +167,7 @@ def validate_create_dates_against_hub_rounds(
     requested_dates: list[str],
     targets: list[str],
     gt_cutoff_offset: int,
-) -> tuple[list[str], list[str], str | None]:
+) -> tuple[list[str], list[str]]:
     """
     Validate create dates against bundled hub season boundaries.
 
@@ -179,7 +179,6 @@ def validate_create_dates_against_hub_rounds(
     Returns:
     - validated create dates
     - gt cutoff dates derived from each create date plus ``gt_cutoff_offset``
-    - matched season label, if validation was possible
     """
     del targets  # date validation now relies only on bundled hub season metadata
     _warn_on_vintaging_offset_mismatch(
@@ -199,7 +198,6 @@ def validate_create_dates_against_hub_rounds(
         return (
             requested_dates,
             _derive_gt_cutoff_dates(requested_dates, offset_days=gt_cutoff_offset),
-            None,
         )
 
     season_matches: list[str] = []
@@ -252,5 +250,4 @@ def validate_create_dates_against_hub_rounds(
     return (
         requested_dates,
         _derive_gt_cutoff_dates(requested_dates, offset_days=gt_cutoff_offset),
-        matched_season_name,
     )

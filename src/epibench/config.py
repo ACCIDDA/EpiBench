@@ -214,7 +214,7 @@ class Config:
             self.vintaging_method = None
             self.vintaging_offset = 0 # no vintaging offset for non-vintaged runs (use the date itself)
 
-        self.dates, self.gt_cutoff_dates, self.hub_round_label = (
+        self.dates, self.gt_cutoff_dates = (
             validate_create_dates_against_hub_rounds(
                 hub_path=self.hub_path,
                 requested_dates=self.dates,
