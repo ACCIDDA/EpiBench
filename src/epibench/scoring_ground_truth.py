@@ -73,4 +73,11 @@ class ScoringGroundTruth:
 
         columns_to_drop = set(COLUMNS_TO_KEEP) - set(gt.columns)
         gt = gt.drop(columns=columns_to_drop)
+
+        if gt['observed'].isna().any():
+            na_info = gt[gt['observed'].isna()]
+            logger.warning(
+                f"\nWARNING: NA observed value found in hub ground truth data for scoring:\n{na_info}\nThese units will be excluded from scoring.\n"
+            )
+
         return gt
