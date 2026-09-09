@@ -61,6 +61,22 @@ def establish_hub_path(hub_path_value: str | Path, base_dir: str | Path | None =
         hub_path = hubs_dir / repo_name
 
         if hub_path.exists() and hub_path.is_dir():
+            # --- START PATCH ---
+            remote_result = subprocess.run(
+                ["git", "remote", "get-url", "origin"],
+                cwd=hub_path,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            existing_origin = remote_result.stdout.strip().rstrip("/").removesuffix(".git")
+            requested_origin = hub_path_str.rstrip("/").removesuffix(".git")
+            if existing_origin != requested_origin:
+                raise RuntimeError(
+                    "Joseph, time to switch the RSV forecast hub origin. Delete the pre-existing "
+                    "`hubs/rsv-forecast-hub` and run command again."
+                )
+            # ---END PATCH ---
             logger.info(f"Updating existing hub repository: {repo_name}")
             subprocess.run(["git", "pull"], cwd=hub_path, check=True)
             logger.info("Hub updated successfully.")
