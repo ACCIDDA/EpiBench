@@ -9,6 +9,11 @@ from pathlib import Path
 import pandas as pd
 import pygit2
 
+# --- START PATCH ---
+from hubdata import connect_target_data
+from hubdata.create_target_data_schema import TargetType
+# ---END PATCH ---
+
 
 logger = logging.getLogger(__name__)
 hub_target_data_schema_module = importlib.import_module("hubdata.create_target_data_schema")
@@ -56,8 +61,24 @@ def _ground_truth_path(hub_path: Path, gt_file: str) -> Path:
     return resolved_gt_path
 
 
-def _read_ground_truth_file(hub_path: Path, gt_file: str) -> pd.DataFrame:
+def _read_ground_truth_file(
+    hub_path: Path,
+    gt_file: str,
+    use_hubdata_connect_target_data: bool = False,
+) -> pd.DataFrame:
     """Read the configured CSV or Parquet ground truth file from a hub checkout."""
+    # --- START PATCH ---
+    if use_hubdata_connect_target_data:
+        suppress_hubdata_warning = not (
+            hub_path / "hub-config" / "target-data.json"
+        ).is_file()
+        with _suppress_missing_target_data_schema_warning(enabled=suppress_hubdata_warning):
+            return connect_target_data(
+                hub_path=hub_path,
+                target_type=TargetType.TIME_SERIES,
+            ).to_table().to_pandas()
+    # ---END PATCH ---
+
     ground_truth_path = _ground_truth_path(hub_path, gt_file)
     if not ground_truth_path.is_file():
         raise FileNotFoundError(
@@ -161,6 +182,7 @@ def _checkout_gt_fetch(
     date_column: str,
     date: str,
     main_branch: str = "main",
+    use_hubdata_connect_target_data: bool = False,
 ) -> tuple[pd.DataFrame, bool]:
     """Fetch configured ground truth from the repository state at ``date``."""
     date_obj = datetime.strptime(date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
@@ -190,7 +212,13 @@ def _checkout_gt_fetch(
     )
 
     try:
-        gt = _read_ground_truth_file(hub_path, gt_file)
+        # --- START PATCH ---
+        gt = _read_ground_truth_file(
+            hub_path,
+            gt_file,
+            use_hubdata_connect_target_data=use_hubdata_connect_target_data,
+        )
+        # ---END PATCH ---
         _validate_columns(gt, [date_column, location_column, observed_column])
         gt, target_column_found = _filter_target_if_present(gt, target)
 
@@ -218,10 +246,17 @@ def _asof_gt_fetch(
     location_column: str,
     date_column: str,
     date_s: list[str] | str,
+    use_hubdata_connect_target_data: bool = False,
 ) -> tuple[pd.DataFrame, str, bool]:
     """Fetch configured ground truth and select the newest as-of revision per key."""
     cutoff_date = max(date_s) if isinstance(date_s, list) else date_s
-    gt = _read_ground_truth_file(hub_path, gt_file)
+    # --- START PATCH ---
+    gt = _read_ground_truth_file(
+        hub_path,
+        gt_file,
+        use_hubdata_connect_target_data=use_hubdata_connect_target_data,
+    )
+    # ---END PATCH ---
     _validate_columns(gt, [date_column, location_column, observed_column, AS_OF_COLUMN])
     gt, target_column_found = _filter_target_if_present(gt, target)
     gt = _select_as_of_vintage(gt, cutoff_date, date_column, location_column)
@@ -250,6 +285,7 @@ def gt_from_hub(
     data_cutoff_dates: list[str],
     vintaging: bool,
     vintaging_method: str | None,
+    use_hubdata_connect_target_data: bool = False,
 ) -> dict[str, pd.DataFrame]:
     """Fetch configured ground truth with the requested vintaging strategy."""
     if len(reference_dates) != len(data_cutoff_dates):
@@ -268,6 +304,9 @@ def gt_from_hub(
                     location_column=location_column,
                     date_column=date_column,
                     date=cutoff_date,
+                    # --- START PATCH ---
+                    use_hubdata_connect_target_data=use_hubdata_connect_target_data,
+                    # ---END PATCH ---
                 )
                 gt_dict[str(reference_date)] = gt
             elif vintaging_method == "as_of":
@@ -279,6 +318,9 @@ def gt_from_hub(
                     location_column=location_column,
                     date_column=date_column,
                     date_s=cutoff_date,
+                    # --- START PATCH ---
+                    use_hubdata_connect_target_data=use_hubdata_connect_target_data,
+                    # ---END PATCH ---
                 )
                 gt_dict[str(reference_date)] = gt
             else:
@@ -293,6 +335,9 @@ def gt_from_hub(
             location_column=location_column,
             date_column=date_column,
             date_s=data_cutoff_dates,
+            # --- START PATCH ---
+            use_hubdata_connect_target_data=use_hubdata_connect_target_data,
+            # ---END PATCH ---
         )
         gt_dict[str(reference_dates[-1])] = gt
         target_column_presence.append(target_column_found)
