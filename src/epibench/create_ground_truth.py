@@ -93,17 +93,24 @@ def _filter_target_if_present(df: pd.DataFrame, target: str) -> tuple[pd.DataFra
     return filtered_df, True
 
 
-def _vintage_key_columns(
-    df: pd.DataFrame, date_column: str, location_column: str
-) -> list[str]:
-    """Return the available dimensions that identify one ground truth observation."""
-    return [date_column, location_column, *(["target"] if "target" in df.columns else [])]
-
-
-def _select_as_of_vintage(
-    df: pd.DataFrame, vintage_date: str, date_column: str, location_column: str
+def _resolve_duplicates(
+    df: pd.DataFrame,
+    vintage_date: str,
+    gt_file: str,
 ) -> pd.DataFrame:
-    """Keep each target/date/location's newest revision available on ``vintage_date``."""
+    """Resolve duplicates across the complete source schema when an as-of date is available."""
+    if AS_OF_COLUMN not in df.columns:
+        duplicate_rows = df.loc[df.duplicated(keep=False)]
+        if duplicate_rows.empty:
+            return df
+
+        duplicates = duplicate_rows.to_dict(orient="records")
+        raise ValueError(
+            f"DUPLICATES DETECTED: {duplicates}\n"
+            "COULD NOT RESOLVE DUPLICATES BECAUSE NO `as_of` column is present in "
+            f"{gt_file}."
+        )
+
     as_of_values = pd.to_datetime(df[AS_OF_COLUMN], errors="coerce")
     if as_of_values.isna().any():
         raise ValueError("Ground truth data contains missing or invalid `as_of` values.")
@@ -116,11 +123,13 @@ def _select_as_of_vintage(
             f"Ground truth data does not contain an `as_of` vintage on or before {vintage_date}."
         )
 
+    duplicate_key_columns = [column for column in df.columns if column != AS_OF_COLUMN]
+
     # Stable sorting makes an exact as_of tie resolve to the later source-file row.
     return (
         available_df.sort_values(by="_as_of_sort_value", kind="stable")
         .drop_duplicates(
-            subset=_vintage_key_columns(available_df, date_column, location_column),
+            subset=duplicate_key_columns,
             keep="last",
         )
         .drop(columns="_as_of_sort_value")
@@ -199,14 +208,7 @@ def _checkout_gt_fetch(
         gt = _read_ground_truth_file(hub_path, gt_file)
         _validate_columns(gt, [date_column, location_column, observed_column])
         gt, target_column_found = _filter_target_if_present(gt, target)
-
-        if AS_OF_COLUMN in gt.columns:
-            gt = _select_as_of_vintage(gt, date, date_column, location_column)
-        elif gt.duplicated(subset=_vintage_key_columns(gt, date_column, location_column)).any():
-            raise ValueError(
-                "Ground truth data contains duplicate target_end_date/location combinations "
-                "but has no `as_of` column to select a vintage."
-            )
+        gt = _resolve_duplicates(gt, vintage_date=date, gt_file=gt_file)
 
         return (
             _keep_output_columns(gt, date_column, location_column, observed_column, target),
@@ -228,9 +230,9 @@ def _asof_gt_fetch(
     """Fetch configured ground truth and select the newest as-of revision per key."""
     cutoff_date = max(date_s) if isinstance(date_s, list) else date_s
     gt = _read_ground_truth_file(hub_path, gt_file)
-    _validate_columns(gt, [date_column, location_column, observed_column, AS_OF_COLUMN])
+    _validate_columns(gt, [date_column, location_column, observed_column])
     gt, target_column_found = _filter_target_if_present(gt, target)
-    gt = _select_as_of_vintage(gt, cutoff_date, date_column, location_column)
+    gt = _resolve_duplicates(gt, vintage_date=cutoff_date, gt_file=gt_file)
     gt = _filter_to_cutoff_target_end_date(gt, cutoff_date, date_column)
 
     if gt.empty:
