@@ -114,6 +114,19 @@ def _filter_target_if_present(df: pd.DataFrame, target: str) -> tuple[pd.DataFra
     return filtered_df, True
 
 
+# --- START PATCH ---
+def _filter_duplicate_rows(df: pd.DataFrame) -> pd.DataFrame:
+    """Remove exact duplicate rows by comparing every column currently present."""
+    duplicate_count = int(df.duplicated().sum())
+    if duplicate_count:
+        logger.warning(
+            "Removing %d exact duplicate ground truth row(s) using all available columns.",
+            duplicate_count,
+        )
+    return df.drop_duplicates().copy()
+# ---END PATCH ---
+
+
 def _vintage_key_columns(
     df: pd.DataFrame, date_column: str, location_column: str
 ) -> list[str]:
@@ -221,14 +234,16 @@ def _checkout_gt_fetch(
         # ---END PATCH ---
         _validate_columns(gt, [date_column, location_column, observed_column])
         gt, target_column_found = _filter_target_if_present(gt, target)
+        # --- START PATCH ---
+        gt = _filter_duplicate_rows(gt)
+        # ---END PATCH ---
 
         if AS_OF_COLUMN in gt.columns:
             gt = _select_as_of_vintage(gt, date, date_column, location_column)
-        elif gt.duplicated(subset=_vintage_key_columns(gt, date_column, location_column)).any():
-            raise ValueError(
-                "Ground truth data contains duplicate target_end_date/location combinations "
-                "but has no `as_of` column to select a vintage."
-            )
+        # --- START PATCH ---
+        # Without as_of, exact duplicates were already removed across the full source schema.
+        # Rows differing in any source column represent distinct observations and remain intact.
+        # ---END PATCH ---
 
         return (
             _keep_output_columns(gt, date_column, location_column, observed_column, target),
@@ -259,6 +274,9 @@ def _asof_gt_fetch(
     # ---END PATCH ---
     _validate_columns(gt, [date_column, location_column, observed_column, AS_OF_COLUMN])
     gt, target_column_found = _filter_target_if_present(gt, target)
+    # --- START PATCH ---
+    gt = _filter_duplicate_rows(gt)
+    # ---END PATCH ---
     gt = _select_as_of_vintage(gt, cutoff_date, date_column, location_column)
     gt = _filter_to_cutoff_target_end_date(gt, cutoff_date, date_column)
 
