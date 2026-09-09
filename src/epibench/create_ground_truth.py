@@ -135,6 +135,8 @@ def _filter_to_cutoff_target_end_date(
     return df.loc[target_end_dates <= pd.Timestamp(cutoff_date)].copy()
 
 
+# --- START PATCH ---
+# don't filter out columns we don't use, keep original names
 def _keep_output_columns(
     df: pd.DataFrame,
     date_column: str,
@@ -142,20 +144,12 @@ def _keep_output_columns(
     observed_column: str,
     target: str,
 ) -> pd.DataFrame:
-    """Return standardized create-pipeline columns, including ``target`` and ``observed``."""
-    standardized_df = (
-        df.loc[:, [date_column, location_column, observed_column]]
-        .rename(
-            columns={
-                date_column: "target_end_date",
-                location_column: "location",
-                observed_column: "observed",
-            }
-        )
-        .copy()
-    )
-    standardized_df["target"] = df["target"] if "target" in df.columns else target
-    return standardized_df.loc[:, ["target_end_date", "location", "target", "observed"]]
+    """Return every source column under its original name, adding ``target`` if absent."""
+    output_df = df.copy()
+    if "target" not in output_df.columns:
+        output_df["target"] = target
+    return output_df
+# ---END PATCH ---
 
 
 def _checkout_gt_fetch(
