@@ -215,10 +215,17 @@ def validate_create_dates_against_hub_rounds(
             season_matches.append(season_name)
 
     if not season_matches:
-        raise ValueError(
+        # --- START PATCH ---
+        logger.warning(
             "Requested create dates do not fall within a single season listed in "
-            f"hub_dates.json for hub {hub_name!r}."
+            "hub_dates.json for hub %r. Proceeding without season-cadence validation.",
+            hub_name,
         )
+        return (
+            requested_dates,
+            _derive_gt_cutoff_dates(requested_dates, offset_days=gt_cutoff_offset),
+        )
+        # ---END PATCH ---
 
     if len(season_matches) > 1:
         raise ValueError(
