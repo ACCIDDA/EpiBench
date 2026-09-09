@@ -30,7 +30,6 @@ def create(config_path=None):
     # .observed_column_name (str)
     # .location_column_name (str)
     # .date_column_name (str)
-    # .use_hubdata_connect_target_data (bool)
     # .vintaging (bool)
     # .vintaging_method (str | None)
     # .vintaging_offset (int)
@@ -48,10 +47,7 @@ def create(config_path=None):
         date_column=config_object.date_column_name,
         data_cutoff_dates=config_object.gt_cutoff_dates,
         vintaging=config_object.vintaging,
-        vintaging_method=config_object.vintaging_method,
-        # --- START PATCH ---
-        use_hubdata_connect_target_data=config_object.use_hubdata_connect_target_data,
-        # ---END PATCH ---
+        vintaging_method=config_object.vintaging_method
     )
     # gt_data will be a dict where keys are dates and values are csvs of gt data
 
@@ -138,9 +134,6 @@ def _build_challenge_id(config_object: Config) -> str:
         "observed_column_name": config_object.observed_column_name,
         "location_column_name": config_object.location_column_name,
         "date_column_name": config_object.date_column_name,
-        # --- START PATCH ---
-        "use_hubdata_connect_target_data": config_object.use_hubdata_connect_target_data,
-        # ---END PATCH ---
         "dates": config_object.dates,
         "vintaging": config_object.vintaging,
         "vintaging_method": config_object.vintaging_method,

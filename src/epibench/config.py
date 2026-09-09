@@ -61,7 +61,6 @@ class Config:
         - .observed_column_name
         - .location_column_name
         - .date_column_name
-        - .use_hubdata_connect_target_data
         - .vintaging
         - .vintaging_method (None if not vintaging)
         - .vintaging_offset (None if not vintaging)
@@ -119,15 +118,6 @@ class Config:
             if not isinstance(value, str) or not value:
                 raise ValueError(f"`{key}` must be a non-empty string.")
             setattr(self, key, value)
-
-        # --- START PATCH ---
-        use_hubdata_connect_target_data = self.config.get(
-            "USE_HUBDATA_CONNECT_TARGET_DATA", False
-        )
-        if not isinstance(use_hubdata_connect_target_data, bool):
-            raise ValueError("`USE_HUBDATA_CONNECT_TARGET_DATA` must be a boolean.")
-        self.use_hubdata_connect_target_data = use_hubdata_connect_target_data
-        # ---END PATCH ---
 
         # `dates` -specific key check 
         dates = self.config['dates'] 
